@@ -2,6 +2,11 @@
 Changelog for package jarp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* pass args on to java
+* Contributors: Marc Hanheide
+
 0.0.7 (2016-04-26)
 ------------------
 * removed jarp.properties
