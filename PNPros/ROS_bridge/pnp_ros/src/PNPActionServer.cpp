@@ -10,7 +10,8 @@
 bool first_insert = true;    
 
 PNPActionServer::PNPActionServer() : as(nh, "PNP", false)
-{ 
+{
+
     cond_service = nh.advertiseService("PNPConditionEval",
                 &PNPActionServer::EvalConditionWrapper, this);
     getEvent_service = nh.advertiseService("PNPGetEventStartingWith",
@@ -24,9 +25,20 @@ PNPActionServer::PNPActionServer() : as(nh, "PNP", false)
     
     as.registerGoalCallback(boost::bind(&PNPActionServer::goalCallback, this, _1) );
     // as.registerCancelCallback(boost::bind(&PNPActionServer::cancelCallback, this, _1) );
-    event_topic_sub = nh.subscribe("PNPConditionEvent", 10, 
+    event_topic_sub = nh.subscribe(TOPIC_PNPCONDITION, 10,
                 &PNPActionServer::addEvent_callback, this);  
+
+    active_places_sub = nh.subscribe(TOPIC_PNPACTIVEPLACES, 10,
+                &PNPActionServer::active_places_callback, this);
+
+    plantoexec_pub = nh.advertise<std_msgs::String>(TOPIC_PLANTOEXEC, 10);
+
     global_PNPROS_variables.clear();
+
+    register_action("wait",&PNPActionServer::wait,this);
+    register_action("waitfor",&PNPActionServer::waitfor,this);
+    register_action("restartcurrentplan",&PNPActionServer::restartcurrentplan,this);
+    register_action("stopcurrentplan",&PNPActionServer::stopcurrentplan,this);
 }
 
 PNPActionServer::~PNPActionServer() { }
@@ -129,15 +141,65 @@ void PNPActionServer::CancelAction(string robotname, string action_name, string 
     starttime[goal.robotname+goal.name]=-1;
 }
 
+// Evaluate an atomic condition
+int PNPActionServer::doEvalCondition(string cond) {
+
+    int r0=-1,r1,r2,r3;
+
+    // This is necessary because multiple calls to the same condition can happen
+    if (ConditionCache.find(cond) != ConditionCache.end()) {
+        r0 = ConditionCache[cond];
+    }
+
+    //cout << "-- EvalCondition " << cond << " ... " << endl;
+
+    r1 = evalCondition(cond); // overwritten by subclass
+    r2 = check_for_event(cond);
+    r3 = evalConditionBuffer(cond); // check condition param buffer
+
+    //cout << "-- EvalCondition " << cond << " : cache / eval / check " << r0 << " " << r1 << " " << r2 ;
+
+    int result=-1;
+    if (r0!=-1) result=r0; // cached value has priority
+    else if (r1!=-1) result=r1;
+    else if (r2!=-1) result=r2;
+    else result=r3;
+
+    //TODO implement unknown value of a condition in PNP
+    if (result==-1) result=0;
+
+    //cout << "-- EvalConditionWrapper RESULT = " << result << endl;
+    return result;
+}
+
+
+// // Evaluate a literal condition (A or not_A)
+int PNPActionServer::doEvalConditionLiteral(string cond) {
+
+    bool neg=false;
+    string atom=cond; // assume positive atom
+    // check negative conditions
+    if (cond.substr(0,4)=="not_") {
+        atom = cond.substr(4); neg=true;
+    }
+
+    int r = doEvalCondition(atom);
+
+    // apply negation if negative atom
+    if (neg and (r==0 || r==1)) r = 1-r;
+
+    return r;
+}
+
 bool PNPActionServer::EvalConditionWrapper(pnp_msgs::PNPCondition::Request  &req,
          pnp_msgs::PNPCondition::Response &res)  {
 
 
-    // cout << "EvalConditionWrapper started with cond: " << req.cond << endl;
+    // cout << "-- EvalConditionWrapper started with cond: " << req.cond << endl;
 
-    int r0 = -1; // partial result
+    int result = -1; // partial result
 
-
+    // check special condition timeout_<actionname>_<value>
     size_t pt = req.cond.find("timeout");
     if (pt!=string::npos) {
         size_t pt2 = req.cond.find_last_of("_");
@@ -148,44 +210,29 @@ bool PNPActionServer::EvalConditionWrapper(pnp_msgs::PNPCondition::Request  &req
         if (starttime.find(act)!=starttime.end())
             d = starttime[act];
         if (d<0) {
-            // cout << "  !!!action not running!!!" << endl;
+            ROS_WARN_STREAM("Timeout condition:: action " << act << " not running!!!");
         }
         else {
             // cout << "           start time = ... " << starttime[act] << " now = " << ros::Time::now().toSec() << endl;
             double dt = ros::Time::now().toSec() - starttime[act];
             if (dt>val_timeout) {
-                r0=1;
-                cout << "TIMEOUT CONDITION " << req.cond << " TRUE " << endl;
+                result=1;
+                ROS_INFO_STREAM("Timeout condition:: " << req.cond << " TRUE ");
             }
         }
     }
-
-
-	// This is necessary because multiple calls to the same condition can happen
-    if (r0==-1 && (ConditionCache.find(req.cond) != ConditionCache.end())) {
-		r0 = ConditionCache[req.cond];
-	}
-
-    int r1 = evalCondition(req.cond);
-    int r2 = check_for_event(req.cond);
-
-	//cout << "EvalConditionWrapper  " << req.cond << " : cache / eval / check " << r0 << " " << r1 << " " << r2 ;
-
-    int result=-1;
-    if (r0!=-1) result=r0;
-	else if (r1!=-1) result=r1; 
-	else result=r2;
- 
-    //TODO implement unknown value of a condition in PNP
-    if (result==-1) result=0;
-
-	//cout << " RESULT = " << result << endl;
+    else {
+        result = doEvalCondition(req.cond);
+    }
 	
     ConditionCache[req.cond] = result;
     res.truth_value = result;
 
+    // cout << "-- EvalConditionWrapper ended with result: " << result << endl;
+
     return true;
 }
+
 
 bool PNPActionServer::GetEventStartingWith(pnp_msgs::PNPLastEvent::Request  &req,
          pnp_msgs::PNPLastEvent::Response &res)  {
@@ -199,6 +246,7 @@ bool PNPActionServer::GetEventStartingWith(pnp_msgs::PNPLastEvent::Request  &req
       {
         eventNameFound = rit->eventName;
         rit->eventName = string("***") + rit->eventName;
+	//std::cout << "Consumed1 event " << rit->eventName << std::endl;
         break;
       }
     }
@@ -297,7 +345,27 @@ void PNPActionServer::actionExecutionThread(string robotname, string action_name
 }
 
 int PNPActionServer::evalCondition(string cond){
-  return -1;
+    return -1;
+}
+
+int PNPActionServer::evalConditionBuffer(string cond){
+    int r=-1,v;
+
+    string rospar = PARAM_PNPCONDITIONBUFFER + cond;
+
+    // cout << "-- EvalConditionBuffer " << cond << " param " << rospar << endl;
+    
+
+    if (cond.find('@') != std::string::npos) {
+        return -1;
+    }
+
+    if (ros::param::get(rospar,v))
+        r=v;
+
+    // cout << "-- EvalConditionBuffer " << cond << " param " << rospar << " " << r << endl;
+
+    return r;
 }
 
 void PNPActionServer::actionStart(const std::string & robot, const std::string & action, const std::string & params)
@@ -339,6 +407,17 @@ bool PNPActionServer::evalCondition(string condition) {
 
 #endif
 
+/* This function is called when a PNP step is over.
+ * Here it is used just to clear the cache of the conditions 
+ */
+void PNPActionServer::active_places_callback(const std_msgs::String::ConstPtr& msg)
+{
+    ConditionCache.clear();
+    if (msg->data.find("init")!=string::npos) {
+        clear_global_PNPROS_variables();
+        ROS_INFO("Init place -> clear PNP global variables.");
+    }
+}
 
 /* The addEvent_callback is called when a string is published to the addEvent topic.
 * When this happens, a new Event is created with the current timestamp and the string received as eventName.
@@ -370,7 +449,7 @@ void PNPActionServer::addEvent_callback(const std_msgs::String::ConstPtr& msg){
 */
 int PNPActionServer::check_for_event(string cond){
 
-//  cout << "   ++ Check for event:  cond = [" << cond << "] " << endl;
+  // cout << "   ++ Check for event:  cond = [" << cond << "] " << endl;
 
 
   int result=-1;
@@ -383,10 +462,11 @@ int PNPActionServer::check_for_event(string cond){
 
     if(variable_values.size() + 1 == splitted_condition.size())
     {
-      cond = splitted_condition[0].substr(0,splitted_condition[0].length()-1);
+      cond = splitted_condition[0];//LJ: Why remove _ to add _ later? Was: .substr(0,splitted_condition[0].length()-1);
+// corrected so that a variable is not necessarily preceded by '_'
       for (unsigned int i = 0; i < variable_values.size(); ++i ){
         update_variable_with_value(splitted_condition[i+1], variable_values[i]);
-        cond += "_" + variable_values[i];
+        cond += /*"_" +*/ variable_values[i];
       }
     }
   }
@@ -397,7 +477,7 @@ int PNPActionServer::check_for_event(string cond){
   eventBuffer_mutex.lock();
 
 
-//  cout << "   -- Checking cond = [" << cond << "] ... " << endl;
+  //cout << "   -- Checking cond = [" << cond << "] ... " << endl;
 
   // ORIG
   //  for(vector<Event>::iterator i = eventBuffer.begin(); i != eventBuffer.end(); ++i) {
@@ -416,7 +496,7 @@ int PNPActionServer::check_for_event(string cond){
 
       if (i->eventName == cond){
         i->eventName = string("***") + i->eventName;
-        
+	//std::cout << "Consumed2 event " << i->eventName << std::endl;
            //cerr << endl;
            //cout << "### Found event " << cond << " in eventBuffer - True" << endl;
            //for(vector<Event>::const_iterator i = eventBuffer.begin(); i != eventBuffer.end(); ++i)
@@ -427,9 +507,10 @@ int PNPActionServer::check_for_event(string cond){
         result=1;
         break;
       }
-      else if (i->eventName == "!"+cond)
+      else if ( (i->eventName == "!"+cond) || (i->eventName == "not_"+cond) )
       {
         i->eventName = string("***") + i->eventName;
+	//std::cout << "Consumed3 event " << i->eventName << std::endl;
 
            //cerr << endl;
            //cout << "### Found event " << cond << " in eventBuffer - False" << endl;
@@ -448,6 +529,8 @@ int PNPActionServer::check_for_event(string cond){
   
   remove_old_elements();
   
+  // cout << "   ** END check_for_event" << endl;
+
   return result;
 }
 
@@ -524,11 +607,14 @@ vector<std::string> PNPActionServer::get_variables_values(vector<std::string> sp
       if (truncated_event.find("_@") == std::string::npos)
         boost::split(variables_values, truncated_event, boost::is_any_of("_"));
       
+      /* What is the semantic of this ??? if the number of found values is the same as the prefix-length consume and return ?
       if(variables_values.size() + 1 == splitted_condition[0].size())
       {
         rit->eventName = string("***") + rit->eventName;
+	//std::cout << "Consumed4 event " << rit->eventName << std::endl;
         break;
       }
+      */
     }
   }
   eventBuffer_mutex.unlock();
@@ -570,6 +656,8 @@ void PNPActionServer::update_variable_with_value(string var, string value){
   } 
 }
 
+#if 1
+// LI: old version
 std::string PNPActionServer::replace_vars_with_values(std::string params){
   vector<std::string> splitted_parameters;
   boost::split(splitted_parameters, params, boost::is_any_of("_"));
@@ -584,8 +672,9 @@ std::string PNPActionServer::replace_vars_with_values(std::string params){
         splitted_parameters[i] = global_PNPROS_variables[key];
       else
       {
-        cerr << "\033[22;31;1m??? Variable " << key << " not initialized ???\033[0m" << endl;
-        throw new runtime_error("\033[22;31;1m??? Wrongly formatted transition name ???\033[0m");
+        ROS_WARN("Variable %s not initialized, passing it to the action", key.c_str());
+        // cerr << "\033[22;31;1m??? Variable " << key << " not initialized ???\033[0m" << endl;
+        // throw new runtime_error("\033[22;31;1m??? Wrongly formatted transition name ???\033[0m");
       }
         
     }
@@ -595,6 +684,39 @@ std::string PNPActionServer::replace_vars_with_values(std::string params){
 
   return new_params.substr(1, new_params.length()-1);
 }
+#else
+// LJ to test : allow for variables inside the parameters
+std::string PNPActionServer::replace_vars_with_values(std::string params){
+  vector<std::string> splitted_parameters;
+  boost::split(splitted_parameters, params, boost::is_any_of("_"));
+  std::string new_params;
+  
+  for (unsigned int i = 0; i < splitted_parameters.size(); ++i)
+  {
+    vector<std::string> splitted_parameter;
+    boost::split(splitted_parameter, splitted_parameters[i], boost::is_any_of("@"));
+    splitted_parameters[i] = splitted_parameter[0]; // first element as a basis
+    for (unsigned int j = 1; j < splitted_parameter.size(); ++j)
+    {
+      std::string key = splitted_parameter[j];
+      if(global_PNPROS_variables.find(key) != global_PNPROS_variables.end())
+        splitted_parameter[j] = global_PNPROS_variables[key];
+      else
+      {
+        ROS_WARN("Variable %s not initialized, passing it to the action", key.c_str());
+        // cerr << "\033[22;31;1m??? Variable " << key << " not initialized ???\033[0m" << endl;
+        // throw new runtime_error("\033[22;31;1m??? Wrongly formatted transition name ???\033[0m");
+      }
+      splitted_parameters[i] += splitted_parameter[j];  
+    }
+    
+    new_params += "_" + splitted_parameters[i];
+  }
+
+  return new_params.substr(1, new_params.length()-1);
+}
+#endif
+
 
 #if 0
 void PNPActionServer::cancelCallback(PNPAS::GoalHandle gh)
@@ -612,3 +734,59 @@ void PNPActionServer::cancelCallback(PNPAS::GoalHandle gh)
 #endif
 
 
+// PREDEFINED ACTIONS
+
+void PNPActionServer::none(string params, bool *run)
+{
+    ROS_INFO_STREAM("### Executing no action ###");
+}
+
+void PNPActionServer::wait(string params, bool *run)
+{
+    ROS_INFO_STREAM("### Executing Wait action for " << params << " seconds ... ");
+
+    double wait_sec = atof(params.c_str()); // if wrong string format atof returns 0.0
+    double sleepunit = 0.25;
+    int count=(int)(wait_sec/sleepunit)+1;
+    while (*run && count-->0)
+        ros::Duration(sleepunit).sleep();
+
+    cout << "### Wait " << params << ((*run)?" Completed":" Aborted") << endl;
+}
+
+void PNPActionServer::waitfor(string params, bool *run)
+{
+    ROS_INFO_STREAM("### Executing WaitFor action with parameter " << params << " ... ");
+
+    while (*run && (doEvalConditionLiteral(params)!=1))
+        ros::Duration(0.2).sleep();
+
+    cout << "### WaitFor " << params << ((*run)?" Completed":" Aborted") << endl;
+}
+
+
+void PNPActionServer::restartcurrentplan(string params, bool *run)
+{
+    ROS_INFO_STREAM("### Executing Restart current plan " << params << " ... ");
+
+    // publish planToExec to start the plan
+    string planname = "<currentplan>";
+    std_msgs::String s;
+    s.data = planname;
+    plantoexec_pub.publish(s); // restart the plan
+
+    cout << "### Restart " << params << ((*run)?" Completed":" Aborted") << endl;
+}
+
+void PNPActionServer::stopcurrentplan(string params, bool *run)
+{
+    ROS_INFO_STREAM("### Executing Stop current plan " << params << " ... ");
+
+    // publish planToExec to start the plan
+    string planname = "stop";
+    std_msgs::String s;
+    s.data = planname;
+    plantoexec_pub.publish(s); // restart the plan
+
+    cout << "### Stop " << params << ((*run)?" Completed":" Aborted") << endl;
+}

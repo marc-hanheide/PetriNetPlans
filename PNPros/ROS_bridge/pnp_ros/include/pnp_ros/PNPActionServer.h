@@ -14,8 +14,14 @@
 #include <boost/thread/thread.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 
+// Topics name
+#define TOPIC_PLANTOEXEC "planToExec"
+#define TOPIC_PNPACTIVEPLACES "pnp/currentActivePlaces"
+#define TOPIC_PNPCONDITION "PNPConditionEvent"
+#define PARAM_PNPCONDITIONBUFFER "PNPconditionsBuffer/"
+
 // Timing for event buffer
-#define TIME_THRESHOLD 5
+#define TIME_THRESHOLD 2
 #define REMEMBERING_TIME 60
 
 typedef void (*action_fn_t)(std::string, bool *); // action name, run flag
@@ -59,7 +65,8 @@ protected:
     ros::ServiceServer clearBuffer_service;
     ros::ServiceServer getVarValue_service;
     ros::ServiceServer setVarValue_service;
-    ros::Subscriber event_topic_sub;
+    ros::Subscriber event_topic_sub, active_places_sub;
+    ros::Publisher plantoexec_pub;
 
     boost::mutex state_mutex;
     boost::mutex run_mutex;
@@ -184,8 +191,13 @@ protected:
 
     // Condition evaluation
     void addEvent_callback(const std_msgs::String::ConstPtr& msg);
+    void active_places_callback(const std_msgs::String::ConstPtr& msg);
     int check_for_event(string cond);
     void remove_old_elements();
+    int doEvalCondition(string cond);
+    int evalConditionBuffer(std::string cond);
+
+    int doEvalConditionLiteral(string cond);
     bool EvalConditionWrapper(pnp_msgs::PNPCondition::Request  &req,
              pnp_msgs::PNPCondition::Response &res); 
     bool GetEventStartingWith(pnp_msgs::PNPLastEvent::Request  &req,
@@ -204,7 +216,16 @@ protected:
     bool well_formatted_with_variables(string);
     void update_variable_with_value(string, string);
     void internal_clear_buffer();
+    void clear_global_PNPROS_variables() { global_PNPROS_variables.clear(); }
 
+public:
+    // Predefined actions
+    virtual void none(string params, bool *run);  // no action
+    virtual void wait(string params, bool *run);  // wait for <params> seconds
+    virtual void waitfor(string params, bool *run); // wait until <params> condition is true, params can be A or not_A
+    virtual void restartcurrentplan(string params, bool *run); // restart the current plan
+    virtual void stopcurrentplan(string params, bool *run); // stop the current plan
+    virtual void initGlobalVariables() { clear_global_PNPROS_variables(); }
 };
 
 #endif

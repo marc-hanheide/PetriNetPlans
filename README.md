@@ -3,6 +3,8 @@ Petri Net Plans
 ===============
 
 This repository contains Petri Net Plans library, PNP ROS bridge and some sample applications.
+More information on the PNP web site: pnp.dis.uniroma1.it
+
 
 This master branch contains up-to-date development, with hydro/indigo version of PNPros.
 
@@ -18,8 +20,8 @@ Please follow this order.
 
 2. Compile and test pnp_ros and rp_action (see PNPros/README.txt)
 
-These packages have been tested with Ubuntu 12.04 + ROS hydro and 
-Ubuntu 14.04 + ROS indigo.
+These packages have been tested with Ubuntu 12.04 + ROS hydro, 
+Ubuntu 14.04 + ROS indigo, Ubuntu 16.04 + ROS Kinetic.
 
 If you encounter and problem, please contact one of the maintainers
 (e.g., iocchi@dis.uniroma1.it)

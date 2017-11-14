@@ -1,5 +1,5 @@
 *~
-*.bak
+*.BAK
 .kdev4
 *.kdev4
 PNP/build
@@ -39,9 +39,10 @@ qtcreator-build
 *.class
 .project
 .cproject
-
 .settings
 *.stlb
-
 /CMakeLists.txt
+PNPnaoqi/build*
+AUTOGEN*
+
 

@@ -1,4 +1,5 @@
 #include "pnpgenerator.h"
+// #include <ros/package.h>
 #include <fstream>
 #include <iostream>
 #include <boost/algorithm/string.hpp>
@@ -26,6 +27,7 @@ string clean(string s) {
   return os.str();
 }
 
+static bool noGraphicGeneration = false;
 
 static string place_color_str =
     "  <toolspecific tool=\"JARP\" version=\"1.2\">\n"
@@ -60,56 +62,65 @@ static string arc_color_str =
 
 
 std::ostream& operator<< (std::ostream& stream, const Place& place) {
-  stream << "<place id=\"" << clean(place.sid) << "\">\n"
-	 << "  <graphics>\n"
-	 << "    <position x=\"" << place.posx << "\" y=\"" << place.posy << "\" />"
-	 << "    <size width=\"32\" height=\"32\" />\n"
-	 << "  </graphics>\n"
-	 << "  <name>\n"
-	 << "    <value>" << clean(place.name) << "</value>\n"
-	 << "    <graphics>\n"
-	 << "      <offset x=\"0\" y=\"40\" />\n"
-	 << "    </graphics>\n"
-	 << "  </name>\n"
-	 << "  <initialMarking>\n"
-	 << "    <value>" << place.marking << "</value>\n"
-	 << "  </initialMarking>\n"
-	 << place_color_str
-	 << "</place>\n";
+  stream << "<place id=\"" << clean(place.sid) << "\">\n";
+  if (!noGraphicGeneration)
+    stream << "  <graphics>\n"
+	   << "    <position x=\"" << place.posx << "\" y=\"" << place.posy << "\" />"
+	   << "    <size width=\"32\" height=\"32\" />\n"
+	   << "  </graphics>\n";
+  stream << "  <name>\n"
+	 << "    <value>" << clean(place.name) << "</value>\n";
+  if (!noGraphicGeneration)
+    stream << "    <graphics>\n"
+	   << "      <offset x=\"0\" y=\"40\" />\n"
+	   << "    </graphics>\n";
+  stream << "  </name>\n";
+  if (place.marking != 0) 
+    stream << "  <initialMarking>\n"
+	   << "    <value>" << place.marking << "</value>\n"
+	   << "  </initialMarking>\n";
+  if (!noGraphicGeneration)
+    stream << place_color_str;
+  stream << "</place>\n";
   return stream;
 }
 
 
 
 std::ostream& operator<< (std::ostream& stream, const Transition& transition) {
-    stream << "<transition id=\"" << transition.sid << "\">\n"
-            << "  <graphics>\n"
-            << "    <position x=\"" << transition.posx << "\" y=\"" << transition.posy << "\" />"
-            << "    <size width=\"8\" height=\"32\" />"
-            << "  </graphics>\n"
-            << "  <name>\n"
-	    << "    <value>" << clean(transition.name) << "</value>\n"
-            << "    <graphics>\n"
-            << "      <offset x=\"0\" y=\"-20\" />\n"
-            << "    </graphics>\n"
-            << "  </name>\n"
-            << transition_color_str
-            << "</transition>\n";
-    return stream;
+  stream << "<transition id=\"" << transition.sid << "\">\n";
+  if (!noGraphicGeneration)
+    stream << "  <graphics>\n"
+	   << "    <position x=\"" << transition.posx << "\" y=\"" << transition.posy << "\" />"
+	   << "    <size width=\"8\" height=\"32\" />"
+	   << "  </graphics>\n";
+  stream << "  <name>\n"
+	 << "    <value>" << clean(transition.name) << "</value>\n";
+  if (!noGraphicGeneration)
+    stream << "    <graphics>\n"
+	   << "      <offset x=\"0\" y=\"-20\" />\n"
+	   << "    </graphics>\n";
+  stream << "  </name>\n";
+  if (!noGraphicGeneration)
+    stream << transition_color_str;
+  stream << "</transition>\n";
+  return stream;
 }
 
 
 std::ostream& operator<< (std::ostream& stream, const Arc& arc) {
-    stream << "<arc id=\"" << arc.sid << "\" source=\"" << arc.source << "\" target=\"" << arc.target << "\" >\n"
-            << "  <inscription>\n"
-            << "    <value>1</value>\n"
-            << "    <graphics>\n"
-            << "      <offset x=\"0\" y=\"40\" />\n"
-            << "    </graphics>\n"
-            << "  </inscription>\n"
-            << arc_color_str
-            << "</arc>\n";
-    return stream;
+  stream << "<arc id=\"" << arc.sid << "\" source=\"" << arc.source << "\" target=\"" << arc.target << "\" >\n";
+//	 << "  <inscription>\n"
+//	 << "    <value>1</value>\n";
+  if (!noGraphicGeneration)
+    stream << "    <graphics>\n"
+	   << "      <offset x=\"0\" y=\"40\" />\n"
+	   << "    </graphics>\n";
+//  stream << "  </inscription>\n";
+  if (!noGraphicGeneration)
+    stream << arc_color_str;
+  stream << "</arc>\n";
+  return stream;
 }
 
 std::ostream& operator<< (std::ostream& stream, const Edge& edge) {
@@ -158,6 +169,15 @@ PNP::PNP(string _name) : name(_name) {
     pinit = NULL; //addPlace("init"); pinit->setInitialMarking(); pinit->setX(3);
 }
 
+PNP::~PNP() {
+  for (vector<Place*>::iterator it = P.begin(); it != P.end(); ++it)
+    delete(*it);
+  for (vector<Edge*>::iterator it = E.begin(); it != E.end(); ++it)
+    delete(*it);
+  for (vector<Transition*>::iterator it = T.begin(); it != T.end(); ++it)
+    delete(*it);
+}
+
 Place* PNP::addPlace(string name) {
     Place* p = new Place(name);
     P.push_back(p);
@@ -193,7 +213,11 @@ void PNP::disconnect(Node* n1, Node* n2) {
         if (ee==*it) break;
         it++;
     }
-    if (it!=E.end()) E.erase(it);
+    if (it!=E.end()) { 
+      delete(*it);
+      E.erase(it);
+    }
+    delete(ee);
 }
 
 Node* PNP::disconnect(Node* n) {
@@ -225,6 +249,23 @@ Node* PNP::next(Node *n) {
     return nn;
 }
 
+std::vector<Node*> PNP::nextAll(Node *n) {
+    // search for ALL the connected Nodes
+    std::vector<Node*> vnn;
+    Node* nn;
+    vector<Edge*>::iterator it = E.begin();
+    while (it!=E.end()) {
+        Edge *e=*it;
+        if (e->first()==n) {
+            nn = e->second();
+            vnn.push_back(nn);
+            //break;
+        }
+        it++;
+    }
+
+    return vnn;
+}
 
 std::pair<Transition*,Place*> PNP::addCondition(string name, Place* p0, int dy) {
     Transition *t = addTransition(name);
@@ -259,16 +300,16 @@ Place* PNP::addAction(string name, Node *p0) {
 vector<Place*> PNP::addSensingAction(string name, Place* p0, vector<string> outcomes) {
     vector<Place *> v;
 
-    Transition *ts = addTransition(name+".start");  
-    Place *pe = addPlace(name+".exec"); 
+    Transition *ts = addTransition(name+".start");
+    Place *pe = addPlace(name+".exec");
     ts->setY(p0->getY()); pe->setY(p0->getY());  // same line as p0
     ts->setX(p0->getX()+1);  pe->setX(p0->getX()+2); // X pos after p0
     connect(p0,ts); connect(ts,pe);
 
     int k=0;
     for (vector<string>::iterator it = outcomes.begin(); it!=outcomes.end(); it++, k++) {
-        Transition *te = addTransition("["+(*it)+"] "+name+".end"); 
-        Place *pf = addPlace("X",-1);  
+        Transition *te = addTransition("["+(*it)+"] "+name+".end");
+        Place *pf = addPlace("X",-1);
         te->setY(p0->getY()+k); pf->setY(p0->getY()+k);
         te->setX(p0->getX()+3);  pf->setX(p0->getX()+4);
         connect(pe,te); connect(te,pf);
@@ -279,38 +320,71 @@ vector<Place*> PNP::addSensingAction(string name, Place* p0, vector<string> outc
     return v;
 }
 
+vector<Place*> PNP::addSensingBranches(Place* p0, vector<string> outcomes) {
+    vector<Place *> v;
+
+    Place *pe = addPlace("",-1);
+    connectPlaces(p0,pe);
+    pe->setX(p0->getX()+2);
+    pe->setY(p0->getY());
+
+    int k=0;
+    for (vector<string>::iterator it = outcomes.begin(); it!=outcomes.end(); it++, k++) {
+        string obs = *it; boost::trim(obs);
+        Transition *te = addTransition("["+obs+"]");
+        Place *pf = addPlace("",-1);
+        te->setY(p0->getY()+k); pf->setY(p0->getY()+k);
+        te->setX(p0->getX()+3);  pf->setX(p0->getX()+4);
+        connect(pe,te); connect(te,pf);
+        v.push_back(pf);
+    }
+
+    return v;
+}
+
 Place* PNP::addTimedAction(string name, Place *p0, int timevalue, Place **p0action) {
 
     // fork transition
     Transition *tf = addTransition("[]"); tf->setX(p0->getX()+1); tf->setY(p0->getY());
     connect(p0,tf);
 
-    // initial places of actions
+    // action name
     Place *pi1 = addPlace("X",-1); pi1->setX(tf->getX()+1); pi1->setY(tf->getY()-1);
     connect(tf,pi1);
     Place *pf1 = addAction(name,pi1);
 
-    // actions
+    // action wait
     Place *pi2 = addPlace("X",-1); pi2->setX(tf->getX()+1); pi2->setY(tf->getY()+1);
     connect(tf,pi2);
     stringstream ss; ss << "wait_" << timevalue;
     Place *pf2 = addAction(ss.str(),pi2);
 
+/*
     // join transition
     Transition *tj = addTransition("[]"); tj->setX(pf1->getX()+1); tj->setY(pf1->getY()+1);
     connect(pf1,tj); connect(pf2,tj);
+*/
 
-    // interrupt
+    // interrupt wait
+    Transition *tj = addTransition(ss.str()+".interrupt []"); tj->setX(pf1->getX()+1); tj->setY(pf1->getY()+1);
+    connect(next(next(pi2)),tj); connect(pf1,tj);
+
+
+    // interrupt action
     Transition *ti = addTransition(name+".interrupt []"); ti->setX(tj->getX()); ti->setY(tj->getY()+1);
     connect(next(next(pi1)),ti); connect(pf2,ti);
-
 
     // final place
     Place *po = addPlace("X",-1); po->setX(tj->getX()+1); po->setY(tj->getY());
     connect(tj,po); connect(ti,po);
 
     nactions+=2;
-    *p0action = pi1; // initial place of action
+    *p0action = pi1; // initial place of main action returned for the table of actions to be considered for ER
+
+    // store timed action info for joint interrupts using place as identifier
+    timed_action_wait_exec_place[pi1]=(Place *)(next(next(pi2)));
+    timed_action_fork_place[pi1]=p0;
+
     return po;
 }
 
@@ -327,7 +401,7 @@ void PNP::connectPlaces(Place *pi, Place *po) { // add po after pi
     connect(pi,ts); connect(ts,po);
 }
 
-void PNP::addInterrupt(Place *pi, string condition, Place *po) {
+Transition* PNP::addInterrupt(Place *pi, string condition, Place *po) {
     Node *pe = next(next(pi)); // exec place
     string ae=pe->getName();
     std::size_t pos = ae.find(".");      // position of "." in str
@@ -335,7 +409,44 @@ void PNP::addInterrupt(Place *pi, string condition, Place *po) {
     Transition *ts = addTransition(a+".interrupt ["+condition+"]");
     ts->setY(pe->getY()-1); ts->setX(pe->getX()); // upper line wrt pe
     connect(pe,ts); connect(ts,po);
+    return ts;
 }
+
+Transition* PNP::addFail(Place *pi, Place *po) {
+    Node *pe = next(next(pi)); // exec place
+    string ae=pe->getName();
+    std::size_t pos = ae.find(".");      // position of "." in str
+    std::string a = ae.substr(0,pos);
+    Transition *ts = addTransition(a+".fail");
+    ts->setY(pe->getY()-1); ts->setX(pe->getX()); // upper line wrt pe
+    connect(pe,ts); connect(ts,po);
+    return ts;
+}
+
+
+
+Place* PNP::addGeneralAction(string &name, Place *p0, Place **p0action) {
+
+    // check time values "<name>|<time>"
+	int timevalue=-1; // value for timed actions
+    size_t ps = name.find("|");
+    if (ps!=string::npos) {
+        timevalue = atoi(name.substr(ps+1).c_str());
+        name=name.substr(0,ps);
+		// cout << "... found timed action " << name << " " << timevalue << endl;
+    }
+
+	Place* n = NULL;
+    if (timevalue>0) {
+        n = addTimedAction(name,p0,timevalue,p0action);
+    }
+    else {
+        n = addAction(name,p0);
+		*p0action = p0;
+    }
+	return n;
+}
+
 
 Place* PNP::addAction(string name, Place *p0) {
     Transition *ts = addTransition(name+".start");
@@ -374,21 +485,20 @@ std::string PNP::stats()
 
 PNPGenerator::PNPGenerator(string name) : pnp(name) {
     cout << endl << "Generation of PNP '" << name << "'" << endl;
-    pnp.pinit = pnp.addPlace("init"); pnp.pinit->setInitialMarking();
+    pnp.pinit = pnp.addPlace("init"); pnp.pinit->setInitialMarking(); pnp.pinit->setY(3);
 }
 
 
-void PNPGenerator::save(const char* filename) {
-    
+void PNPGenerator::save(const char* filename, bool noGraphics) {
+  noGraphicGeneration = noGraphics;
     stringstream ss;
-    
     if (filename==NULL) {
         ss << pnp.getName().c_str() << ".pnml";
     }
     else {
         ss << filename;
         if (strcasestr(filename,".pnml")==NULL)
-            ss << ".pnml";        
+            ss << ".pnml";
     }
     std::ofstream of(ss.str().c_str());
     of << pnp;
@@ -419,13 +529,6 @@ Place *PNPGenerator::genLinearPlan(Place *pi, string plan, bool allinstack)
     while (i!=v.end()) {
         string a = *i++;
         if (a!="") {
-            // check time values "<name>|<time>"
-            int timevalue=-1; // value for timed actions
-            size_t ps = a.find("|");
-            if (ps!=string::npos) {
-                timevalue = atoi(a.substr(ps+1).c_str());
-                a=a.substr(0,ps);
-            }
 
             bool addstack = false;
             if (a[a.size()-1]=='*') {
@@ -433,15 +536,11 @@ Place *PNPGenerator::genLinearPlan(Place *pi, string plan, bool allinstack)
                 a = a.substr(0,a.size()-1);
             }
 
-            if (timevalue>0) {
-                Place *poa;
-                p = pnp.addTimedAction(a,p,timevalue,&poa);
-                if (allinstack || addstack) addActionToStacks(a,poa);
-            }
-            else {
-                p = pnp.addAction(a,p);
-                if (allinstack || addstack) addActionToStacks(a,p);
-            }
+		  	Place *poa; // place to save in the stack
+		  	p = pnp.addGeneralAction(a,p,&poa);
+
+    		if (allinstack || addstack) addActionToStacks(a,poa);
+            
         }
     }
 
@@ -455,7 +554,7 @@ void PNPGenerator::genHumanAction(string say_ask, string say_do, string action_d
     Place *p2 = pnp.addAction(say_ask,p1); addActionToStacks(say_ask,p1);
     pair<Transition*,Place*> ptg = pnp.addCondition(" ",p2);
     Place *p = ptg.second;
-    
+
     Transition* t1 = pnp.addTransition("["+condition+"]"); t1->setY(p->getY()-1); t1->setX(p->getX()+1);
     Transition* t2 = pnp.addTransition("[saidYes]"); t2->setY(p->getY()+0); t2->setX(p->getX()+1);
     Transition* t3 = pnp.addTransition("[saidNo]");  t3->setY(p->getY()+1); t3->setX(p->getX()+1);
@@ -475,11 +574,11 @@ void PNPGenerator::genHumanAction(string say_ask, string say_do, string action_d
 
     // say_dont
     Place *pf1 = pnp.addAction(say_dont,pn); addActionToStacks(say_dont,pn);
-    Transition* tf1 = pnp.addTransition("[not humanDetected]"); tf1->setY(pf1->getY()); tf1->setX(pf1->getX()+1); 
+    Transition* tf1 = pnp.addTransition("[not humanDetected]"); tf1->setY(pf1->getY()); tf1->setX(pf1->getX()+1);
     pnp.connect(pf1,tf1); pnp.connect(tf1,pnp.pinit);
 
     pnp.connect(t1,pg); pnp.connect(t4,pnp.pinit);
-    
+
     pnp.addInterrupt(pnp.pinit, condition, pg);
 
 }
@@ -576,7 +675,7 @@ void PNPGenerator::applySocialRules() {
                   if (!found)
                     nn = pnp.next(nn);
                 }
-		
+
                 Node* t1 = pnp.disconnect(nn);
                 Transition* tf = pnp.addTransition(" "); tf->setX(nn->getX()+1); tf->setY(nn->getY());
                 pnp.connect(nn,tf);
@@ -609,35 +708,118 @@ void PNPGenerator::applySocialRules() {
 bool PNPGenerator::parseERline(const string line, string &action, string &cond, string &plan)
 {
     bool r=false;
-    //printf("### Parsing: %s\n",line.c_str());   
+    //printf("### Parsing: %s\n",line.c_str());
+
+    if (line[0]=='#') // comment
+        return false;
+
     vector<string> strs;
     boost::algorithm::split_regex( strs, line, boost::regex( "\\*[^ ]*\\*" ) ) ;
-    
-    if (strs.size()>=3) {
+
+    if (strs.size()>3) {
         action=strs[2]; boost::algorithm::trim(action);
         cond=strs[1]; boost::algorithm::trim(cond);
         plan=strs[3]; boost::algorithm::trim(plan);
         r = true;
-        
+
         //printf("### action: [%s] ",action.c_str());
         //printf("cond: [%s] ",cond.c_str());
         //printf("plan: [%s]\n",plan.c_str());
-    } 
-    
+    }
+
     return r;
 }
 
 
 void PNPGenerator::readERFile(const char*filename) {
-    
+
     string line,action,cond,recoveryplan;
-    
+
     ifstream f(filename);
     while(getline(f,line)) {
         if (parseERline(line,action,cond,recoveryplan))
             executionrules.add(action,cond,recoveryplan);
     }
     f.close();
+}
+
+
+void PNPGenerator::applyOneExecutionRule(Place *current_place, string condition, string recoveryplan) {
+
+    // split recovery plan
+    vector<string> v; boost::split(v,recoveryplan,boost::is_any_of("; "),boost::token_compress_on);
+
+    Place *po = NULL; string R="";
+    Place *pi = pnp.addPlace("I",-1); pi->setY(current_place->getY()-1); pi->setX(current_place->getX()+3);
+
+    if (v.size()>1) {
+        // build actual plan without recovery specification
+        string plan = ""; int i=0;
+        for (i=0; i<v.size()-2; i++)
+            plan = plan + v[i] + ";";
+        plan = plan + v[i];
+
+        //cout << "-- recovery plan " << plan << endl;
+        po = genLinearPlan(pi,plan,false); // output place of linear plan
+
+        R = v[v.size()-1];
+    }
+    else {
+        R = recoveryplan;
+        po = pi;
+    }
+
+    Transition *tsi;
+    if(condition=="action_failed")
+        tsi = pnp.addFail(current_place,pi);
+    else
+        tsi = pnp.addInterrupt(current_place,condition,pi);
+
+    // cout << "DEBUG: checking for wait parallel actions of action " << current_action_param << endl;
+    if (pnp.timed_action_wait_exec_place.find(current_place) != pnp.timed_action_wait_exec_place.end()) {
+    // cout << "DEBUG: connect interrupt for wait parallel actions of action " << current_action_param << endl;
+        Place *wait_exec_place = pnp.timed_action_wait_exec_place[current_place];
+        pnp.connect(wait_exec_place,tsi);
+    }
+
+
+    if (R=="fail_plan") {
+        po->setName("fail");
+    }
+    else if (R=="goal") {
+        po->setName("goal");
+    }
+    else if (R=="restart_plan") {
+        pnp.connectPlaces(po,pnp.pinit);
+    }
+    else if (R=="restart_action") {
+        if (pnp.timed_action_wait_exec_place.find(current_place) != pnp.timed_action_wait_exec_place.end()) {
+            //timed action
+            Place *pd = pnp.timed_action_fork_place[current_place];
+            pnp.connectPlaces(po,pd);
+        }
+        else
+            pnp.connectPlaces(po,current_place);
+    }
+    else if (R=="skip_action") {
+        if (pnp.timed_action_wait_exec_place.find(current_place) != pnp.timed_action_wait_exec_place.end()) {
+            //timed action
+            Place *pd = (Place *)(pnp.next(pnp.next(pnp.endPlaceOf(current_place))));
+            pnp.connectPlaces(po,pd);
+        }
+        else
+            pnp.connectPlaces(po,pnp.endPlaceOf(current_place));
+    }
+    else if (R.substr(0,4)=="GOTO") {
+        addGotoPattern(po,R);
+    }
+    else {
+
+        cout << endl << "\033[22;31;1mERROR: Invalid last action of recovery procedure [" << R << "]" << endl
+             << "PLAN NOT GENERATED !!!\033[0m" << endl;
+        exit(-1);
+    }
+
 }
 
 void PNPGenerator::applyExecutionRules() {
@@ -659,48 +841,12 @@ void PNPGenerator::applyExecutionRules() {
                 cout << "    " << eit->condition << " -> " << eit->recoveryplan << endl;
 
                 boost::trim(eit->recoveryplan);
-                vector<string> v; boost::split(v,eit->recoveryplan,boost::is_any_of("; "),boost::token_compress_on);
-                
-                Place *po = NULL; string R="";
-                Place *pi = pnp.addPlace("I",-1); pi->setY(current_place->getY()-1); pi->setX(current_place->getX()+3);
 
-                if (v.size()>1) {
-                    // build actual plan without recovery specification
-                    string plan = ""; int i=0;
-                    for (i=0; i<v.size()-2; i++)
-                        plan = plan + v[i] + ";";
-                    plan = plan + v[i];
+                applyOneExecutionRule(current_place, eit->condition, eit->recoveryplan);
 
-                    //cout << "-- recovery plan " << plan << endl;
-                    po = genLinearPlan(pi,plan,false); // output place of linear plan
-
-                    R = v[v.size()-1];
-                }
-                else {
-                    R = eit->recoveryplan;
-                    po = pi;
-                }
-
-                
-                pnp.addInterrupt(current_place,eit->condition,pi);
-                
-                
-                if (R=="fail_plan") {
-                    po->setName("fail");
-                }
-                else if (R=="restart_plan") {
-                    pnp.connectPlaces(po,pnp.pinit);
-                }
-                else if (R=="restart_action") {
-                    pnp.connectPlaces(po,current_place);
-                }
-                else if (R=="skip_action") {
-                    pnp.connectPlaces(po,pnp.endPlaceOf(current_place));
-                }
-
-            }
+            } // if
             eit++;
-        }
+        } // while
 
     }
 }
@@ -713,8 +859,8 @@ bool PNPGenerator::genFromPolicy(Policy &p) {
     std::map<string,Place*> visited;
 
     cout << "Init: " << p.initial_state << endl;
-    
-    
+
+
     string current_state = p.initial_state;
     // add a first fixed transition from the init place to the initial state
     pair<Transition*,Place*> pa = pnp.addCondition("[]",pnp.pinit);
@@ -742,7 +888,7 @@ bool PNPGenerator::genFromPolicy(Policy &p) {
 
         if (action=="") {
             if (current_state!=p.final_state)
-                std::cerr << "PNPgen Warning: No action found for state " << current_state << std::endl;
+                std::cerr << "\033[22;32;1mPNPgen Warning: No action found for state " << current_state << "\033[0m" << std::endl;
             continue;
         }
         std::cout << action << " -> ";
@@ -750,12 +896,13 @@ bool PNPGenerator::genFromPolicy(Policy &p) {
         vector<StateOutcome> vo = p.getOutcomes(current_state,action);
 
         if (vo.size()==0) {
-            std::cerr << "PNPgen ERROR: No successor state found for state " << current_state << " and action " << action  << std::endl;
+            std::cerr << "\033[22;31;1mPNPgen ERROR: No successor state found for state " << current_state << " and action " << action  << "\033[0m" << std::endl;
             _error = true;
             break;
         }
 
-        Place *pe = addAction(action,current_place);  // pe: end place of action
+        Place *pe = addGeneralAction(action,current_place);  // pe: end place of action
+
 
         // y coordinate of Petri Net layout
         int dy=0;
@@ -796,13 +943,94 @@ bool PNPGenerator::genFromPolicy(Policy &p) {
     return !_error;
 }
 
+bool PNPGenerator::genFromConditionalPlan_loop(ConditionalPlan& plan,
+					       ConditionalPlan& final_state, map<string,pair<string,vector<ActionOutcome> > > state_action_out){
+
+  bool ok = true; //check erros
+
+  map<string,Place*> visited;
+
+  cout << "Initial state " << plan.state << endl;
+  string current_state = plan.state;
+  pair<Transition*,Place*> pa = pnp.addCondition("[]",pnp.pinit);
+  Place* p1 = pa.second;
+  p1->setName(current_state);
+  visited[plan.state] = p1;
+
+  cout << "Final state " << final_state.state << endl;
+
+  stack< pair<string,Place*> > ss; ss.push(make_pair(current_state,p1));
+
+  while(!ss.empty()){
+    current_state = ss.top().first; Place* current_place = ss.top().second;
+    ss.pop();
+
+    cout << "PNPgen::  " << current_state << " : ";
+    string action = state_action_out[current_state].first;
+
+    if (action==""){
+      if (current_state != final_state.state)
+	cout << "PNPgen Warning: No action found for state " << current_state << endl;
+        continue;
+    }
+    cout << action << " -> ";
+
+    vector<ActionOutcome> vo = state_action_out[current_state].second;
+    if (vo.size()==0){
+      cout << "goal" << endl;
+      cout << "PNPgen Warning: No successor state found for state " << current_state << " and action \"" << action  << "\"" << endl;
+      cout << "		       ...adding a final state..." << endl;
+//       ok = false;
+//       break;
+      Place *pfinal = addGeneralAction(action,current_place);
+      pfinal->setName("goal");
+      continue;
+    }
+
+    Place *pe = addGeneralAction(action,current_place);  // pe: end place of action
+
+    // y coordinate of Petri Net layout
+    int dy=0;
+
+    vector<ActionOutcome>::iterator it;
+
+    for(it = vo.begin(); it != vo.end(); ++it){
+      string succ_state = it->successor->state;
+      string cond = it->observation;
+
+      if (cond[0]!='[') cond = "["+cond+"]";
+      cout << cond << " " << succ_state << "    ";
+
+      Place* ps = visited[succ_state];
+
+      // check if succ_state is already visited
+      if (ps==NULL) { // if not visited
+      	pair<Transition*,Place*> pa = pnp.addCondition(cond,pe,dy); dy++;
+      	Place* pc = pa.second;
+      	ss.push(make_pair(succ_state,pc));
+      	visited[succ_state]=pc;
+      	pc->setName(succ_state);
+      	// if (succ_state== final_state.state) pc->setName("goal");
+      }else { // if already visited
+	       pnp.addConditionBack(cond,pe, ps, dy); dy++;
+      }
+     } // for io
+
+
+     cout << endl;
+  }
+
+  return ok;
+
+}
+
 bool PNPGenerator::genFromConditionalPlan_r(ConditionalPlan *plan, Place *p0) {
     bool ret = true;
     cout << "PNPgen:: current state: " << plan->state << endl;
     p0->setName(plan->state);
     Place *p1;
     if (plan->outcomes.size()==1) {
-        p1 = addAction(plan->action,p0);
+        p1 = addGeneralAction(plan->action,p0);
         vector<ActionOutcome>::iterator it = plan->outcomes.begin();
         ret &= genFromConditionalPlan_r(it->successor,p1);
     }
@@ -824,7 +1052,7 @@ bool PNPGenerator::genFromConditionalPlan_r(ConditionalPlan *plan, Place *p0) {
     while (it!=plan->outcomes.end()) {
         Place *pc;
         if (it->observation!="[]") {
-            std::pair<Transition*,Place*> tp = pnp.addCondition(it->observation, p1); 
+            std::pair<Transition*,Place*> tp = pnp.addCondition(it->observation, p1);
             pc = tp.second;
         }
         else {
@@ -835,13 +1063,352 @@ bool PNPGenerator::genFromConditionalPlan_r(ConditionalPlan *plan, Place *p0) {
             ret &= genFromConditionalPlan_r(it->successor,pc);
         it++;
     }
-    
+
 */
 
     return ret;
 }
 
 bool PNPGenerator::genFromConditionalPlan(ConditionalPlan &plan) {
-    return genFromConditionalPlan_r(&plan,pnp.pinit);    
+    return genFromConditionalPlan_r(&plan,pnp.pinit);
+}
+
+int found_end(string line){
+  
+  int brackets = 0;
+  int i;
+  for(i = 0; i < line.size(); ++i){
+    if(line[i] == '<') brackets++;
+    if(line[i] == '>'){ 
+      brackets--;
+      if(brackets == 0) break;
+    }
+//     cout << "bracket " << brackets << endl;
+//     cout << "::: " << line[i] << endl;
+  }
+  
+  return i;
+}
+
+string getNext(string& line){
+  string res;
+  boost::trim(line);
+  
+  // execution rule
+  if (line[0]=='!') {
+    size_t e = line.substr(1).find('!');
+    res = line.substr(1,e-1);
+    line.erase(0,e+2);
+  }
+  //we must return an action ..a;
+  else if (line.find(';') < line.find('<')){
+    //     cout << "case 1 " << line << endl;
+    res = line.substr(0,line.find(';'));
+    line.erase(0,line.find(';')+1);
+  } 
+  // we must return a conditioning <..>
+  else if (line.find('<') < line.find(';')){
+      //    cout << "case 2 " << line << endl;
+      int first = line.find('<');
+      int second = found_end(line);
+      res = line.substr(first,second-first+1);
+      line.erase(first,second-first+2);
+  }
+  // we must return the last action ;..a
+  else if (line.find(';') == string::npos && line.find('<') == string::npos){
+      //   cout << "case 3 " << line << endl;
+      res = line;
+      line = "";
+  }
+  boost::trim(res);
+  boost::trim(line);
+  return res;
+}
+
+void find_branches(string& to_branch, vector<string>& observations,vector<string>& branches){
+  
+  string app;
+  // to_branch.erase(to_branch.begin()); //remove the first '<'
+  
+  for(int i = 0; i < to_branch.size(); i++){
+    
+    //observation < ... ?
+    if(to_branch[i] == '?'){
+//       cout << "found obs: " << app << endl;
+      observations.push_back(app);
+      app = string();
+      ++i;
+    }
+    
+    //jump over conditional in main branch
+    if(to_branch[i] == '<'){
+      int j = to_branch.find_first_of('>',i);
+      app += to_branch.substr(i,j-i+1);
+      i = j;
+      ++i;
+    }
+    
+    //branch of type ? ... :
+    if(to_branch[i] == ':'){
+//       cout << "found branch: " << app << endl;
+      branches.push_back(app);
+      app = string();
+      ++i;
+    }
+    
+    //end of a conditonal sub.branch: ; ... >
+    if(to_branch[i] == '>' && app.find('<') == string::npos ){ 
+//       app.erase(remove(app.begin(), app.end(), '>'), app.end());
+      break;
+    }
+    
+    app += to_branch[i];
+//     cout << app << endl;
+  }
+
+  if(app[app.length()]=='>') app.erase(app.end()-1); //remove the last '>'
+  branches.push_back(app);
+  to_branch.erase(to_branch.end()-1); //remove the last '>'
+  
+}
+
+Place* PNPGenerator::addGotoPattern(Place *pi, string next) 
+{
+  string label = next.substr(5);
+  boost::trim(label);
+  cout << "GOTO label " << label << endl;
+  Place *pl = LABELS[label];
+  if (!pl) {
+    bool found = std::find(vlabels.begin(), vlabels.end(), label) != vlabels.end();
+    if (!found) {
+        cout << "\033[22;31;1mERROR label " << label << " not found." << endl 
+             << "PLAN NOT GENERATED !!!\033[0m" << endl;
+        exit(-1);
+    }
+    else {
+        cout << "Adding label " << label << endl;
+        pl = pnp.addPlace(label);
+        LABELS[label] = pl;
+    }
+  }
+
+  if (pl) {
+      Transition* t = pnp.addTransition(" "); t->setY(pi->getY()-2); t->setX(pi->getX()-2);
+      pnp.connect(pi,t); pnp.connect(t,pl);
+      pi->setName("goto");
+  }
+
+  return pl;
+}
+
+
+// pi: initial place for this part of the plan (last place of previous part) 
+Place* PNPGenerator::genFromLine_r(Place* pi, string plan)
+{
+  
+  cout << endl << "=== Current plan: " << endl << plan << endl;
+
+  if(plan.empty() || plan == "" || plan == " "){ //base case
+    cout << "end" << endl << endl;
+    
+    /******better visualization************/
+    int x, y;
+    pnp.getLastPlaceCoord(x,y);
+    pi->setX(x+2);
+    pi->setY(y);
+    /************************************/
+
+    return pi;
+  }else{
+    
+    //get [ai || <..>]
+    string next = getNext(plan);    
+    cout << "current action: " << next << endl;
+    cout << "rest of the plan: " << plan << endl;
+
+    //conditioning: go deep
+    if(next.find('<') != string::npos){
+      boost::trim(next);
+      int i = found_end(next);
+      next = next.substr(1,i-1);
+      cout << "to branch... " << next << endl;
+      vector<string> observations;
+      vector<string> branches;
+      find_branches(next,observations,branches);
+
+      cout << "-------------" << endl;
+      for(int i = 0; i < branches.size(); i++){
+        cout << "observation: " << observations[i] << endl;
+        cout << "with branch: " << branches[i] << endl;
+        cout << "-------------" << endl;
+      }
+      cout << endl;
+    
+      vector<Place*> s = pnp.addSensingBranches(pi,observations);
+      vector<Place*> to_merge;
+      for(int i = 0; i < s.size(); ++i){
+        cout << "...continue in the branch: " << branches[i] << endl;
+        Place* p = genFromLine_r(s[i],branches[i]);
+        to_merge.push_back(p);
+      }
+
+      Place* m = pnp.addPlace("",-1);
+      
+      /******better visualization************/
+      int x, y;
+      pnp.getLastPlaceCoord(x,y);
+      m->setX(x+2);
+      m->setY(y);
+      /************************************/
+      
+      for(int i = 0; i < to_merge.size();++i){
+        if (to_merge[i]->getName()!="goto") {
+          pnp.connectPlaces(to_merge[i],m);
+          cout << "merged " << to_merge[i]->getName() << " with " << m->getName() << endl;
+        }
+      }
+	
+      return genFromLine_r(m,plan);     
+   } 
+    
+   //no conditioning: add serial action 
+   
+   //remove garbage from previous step (to fix)
+   if(next.find('>') != string::npos && next.find('<') == string::npos){
+     next.erase(remove(next.begin(), next.end(), '>'), next.end());
+   }
+     
+
+   if (next == "" || next.empty())
+      return pi;
+
+   cout << endl << "Adding action: [" << next << "]" << endl;
+
+   if (next.substr(0,1)=="#") { // comment
+      return genFromLine_r(pi,plan);
+   }
+   else if (next.substr(0,5)=="LABEL") {
+      if (LABELS[next]==NULL) {
+          cout << "Adding label " << next << endl;
+          if (pi->getName().substr(0,5)=="LABEL") { // if this place is a label, add a new one
+            Place *newpi = pnp.addPlace(next);
+            pnp.connect(pi,newpi);
+            LABELS[next]=newpi;
+          }
+          else { // just replace the name of the place
+            pi->setName(next);   
+            LABELS[next]=pi;  
+          }
+          cout << " -- Rest of the plan: " << plan << endl;
+      }
+      else {
+          cout << "Linking existing label " << next << endl;
+          pnp.connectPlaces(pi,LABELS[next]);
+      }
+      return genFromLine_r(LABELS[next],plan);
+   }
+   else if (next.substr(0,4)=="GOTO") {
+
+      Place *po = addGotoPattern(pi,next);
+
+      cout << " -- current plan: " << plan << endl;
+      string label = next.substr(5);
+      cout << " -- current label: " << label << endl;
+
+      size_t n = plan.find(label);
+      if (n!=string::npos) { // found the label in this branch of the plan go to it
+
+          string rest = plan.substr(n);
+          n = rest.find(";");
+          rest = rest.substr(n+1);        
+          cout << " -- rest: " << rest << endl;
+          return genFromLine_r(po,rest);
+      }
+      else // the label is in another branch, will be connected later
+        return pi;
+   }
+   else if (next.substr(0,4)=="*if*") {
+      Place *pexec = pnp.execPlaceOf(lastActionPlace);
+
+      vector<string> strs;
+      boost::algorithm::split_regex( strs, next, boost::regex( "\\*[^ ]*\\*" ) ) ;
+
+      string cond="", recov="";
+      if (strs.size()>2) {
+        cond=strs[1]; boost::algorithm::trim(cond);
+        recov=strs[2]; boost::algorithm::trim(recov);
+        cout << "ER::  " << pexec->getName() << " - [" << cond << "] - " << recov << endl;
+        applyOneExecutionRule(lastActionPlace, cond, recov);
+      }
+      else {
+        cout << "\033[22;32;1mWARNING!!! ER " << next << " not well formatted. IGNORED!!! \033[0m" << endl;
+      }
+      return genFromLine_r(pi,plan);
+   }
+   else { // normal action
+	  Place *poa; // place to save in the stack (init place of action)
+      Place *n = pnp.addGeneralAction(next,pi,&poa);
+	  addActionToStacks(next,poa);
+      lastActionPlace = poa; // init place of the last action
+      return genFromLine_r(n,plan);
+    }
+  }
+}
+
+void PNPGenerator::readLabels(string plan) {
+
+    cout << "LABELS" << endl;
+    while (!plan.empty() && plan!="") {
+        string next = getNext(plan);
+        if (next.substr(0,5)=="LABEL") {
+          cout << "   " << next << endl;
+          vlabels.push_back(next);
+        }
+    }
+
+}
+
+void readInlineFile(const char*filename, string &plan)
+{
+    string app;
+    ifstream f(filename);
+    while(f.good()){
+      getline(f,app);
+      boost::trim(app);
+      if (!app.empty() && app[0]!='#') {
+        // remove inline comments
+        vector<string> v;
+        boost::split(v, app, boost::is_any_of("#"));
+        plan += " " + v[0];
+      }
+    }
+    cout << "plan read: " << plan << endl;
+    f.close();
+}
+
+
+
+bool PNPGenerator::genFromLine(string path)
+{
+  string plan;
+ 
+  //read plan from file
+  readInlineFile(path.c_str(),plan);
+  readLabels(plan);
+  
+  //recursively create the pnp
+  Place *p = genFromLine_r(pnp.pinit,plan);
+  if (p->getName()!="goto") { // ???
+     if (p->getName().substr(0,5)=="LABEL") {
+        Place *newp = pnp.addPlace("goal");
+        newp->setX(p->getX()+2); newp->setY(p->getY());
+        pnp.connectPlaces(p,newp);
+    } 
+    else
+     p->setName("goal");
+  }
+  save();
+  
+  return true;
 }
 

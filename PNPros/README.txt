@@ -1,17 +1,18 @@
 
 This package contains PNP ROS bridge.
 
-ROS hydro/indigo (catkin) version.
+ROS hydro/indigo/kinetic (catkin) version.
 
 
 How to compile pnp_ros and examples (rp_action)
 ===============================================
 
 
-Add a link from this folder to your catkin workspace
-for example, 
+Add links from the folders in PNPros to your catkin workspace.
+For example
 
-  catkin_ws/src$ ln -s <path_to_PNP>/PNPros .
+  catkin_ws/src$ ln -s <path_to_PNP>/PNPros/ROS_bridge/pnp_ros .
+  catkin_ws/src$ ln -s <path_to_PNP>/PNPros/ROS_bridge/pnp_msgs .
 
 and run 'catkin_make' from your catkin workspace
 to compile the ROS packages related to PNPros
@@ -68,7 +69,6 @@ You can change plan on-line by using:
   $ rostopic pub /robot_0/planToExec std_msgs/String "data: '<plan_name>'" -1 
 
 Special plan_name 'stop' is used to stop/abort the current plan.
-
 
 How to visualize the execution of the plan
 ==========================================

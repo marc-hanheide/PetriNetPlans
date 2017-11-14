@@ -70,7 +70,7 @@ public:
     void setName(string _name) {
         name=_name;
     }
-    
+
     string getName() { return name; }
 };
 
@@ -141,10 +141,17 @@ public:
 
     Place *pinit; // init place of the plan
 
+    map<Place *, Place*> timed_action_wait_exec_place; // exec place of corresponding wait action for timed actions (first: init place of a timed action, second: exec place of wait)
+    map<Place *, Place*> timed_action_fork_place; // fork place of timed actions
+
     PNP(string _name);
+    ~PNP();
     string getName() { return name; }
+    void getLastPlaceCoord(int& x, int& y){ x = P.at(P.size()-2)->getX(); y = P.at(P.size()-2)->getY();}
 
     Node *next(Node *n);
+	std::vector<Node*> nextAll(Node *n);
+
     void connect(Node* n1, Node* n2);
     void disconnect(Node* n1, Node* n2);
     Node* disconnect(Node* p);
@@ -158,11 +165,15 @@ public:
     Place* addAction(string name, Place* p0);
     Place* addAction(string name, Node* p0);
 
+    Place* addGeneralAction(string &name, Place* p0, Place **p0action);
+
     // sensing action with multiple outcomes
     std::vector<Place*> addSensingAction(string name, Place* p0, vector<string> outcomes);
+    std::vector<Place*> addSensingBranches(Place *place, vector<string> outcomes);
 
     Place* addTimedAction(string name, Place *p0, int timevalue, Place **p0action);
-    void addInterrupt(Place *pi, string condition, Place *po);
+    Transition* addInterrupt(Place *pi, string condition, Place *po);
+    Transition* addFail(Place *pi, Place *po);
     void connectActionToPlace(Place *pi, Place *po); // connect the action and the place with an empty transition
     void connectPlaces(Place *pi, Place *po); // connect the two places with an empty transition
 
@@ -200,11 +211,17 @@ private:
 
     stack< pair<string, Place*> > ASS;  // action, Place* map - stack of actions to be analized for applying the social rules
     stack< pair<string, Place*> > ASE;  // action, Place* map - stack of actions to be analized for applying the execution rules
+    map<string, Place*> LABELS;  // label, Place* map 
+    vector<string> vlabels;      // all the labels found in the plan
+
+    Place* lastActionPlace = NULL; // init place of last action added in the PNP
+                            // to be used by inline ER
+
 
     void addActionToStacks(string a, Place *p) {
         ASS.push(make_pair(a,p)); ASE.push(make_pair(a,p));
     }
-    
+
     bool parseERline(const string line, string &action, string &cond, string &plan);
 
 public:
@@ -221,7 +238,12 @@ public:
     // Generation of PNP
     bool genFromPolicy(Policy &p);
     bool genFromConditionalPlan(ConditionalPlan &plan);
+    bool genFromConditionalPlan_loop(ConditionalPlan &plan,
+				     ConditionalPlan& final_state, map<string,pair<string,vector<ActionOutcome> > > state_action_out);
     bool genFromConditionalPlan_r(ConditionalPlan *plan, Place *place);
+    
+    Place* genFromLine_r(Place* pi, string plan);
+    bool genFromLine(string path);
 
 
     void setMainLinearPlan(string plan); // set this plan as main plan for this generation
@@ -233,24 +255,30 @@ public:
     void genHumanAction(string say_ask, string say_do, string action_do, string say_dont, string condition);
     void applySocialRules();
     void applyExecutionRules();
-        
+    void applyOneExecutionRule(Place *current_place, string condition, string recoveryplan);
+
     void readERFile(const char* filename);
     void readERFile(const string& filename) { readERFile(filename.c_str()); }
+    void readLabels(string plan);
 
     Place * add_before(PNP &pnp, string b, string current_action, Place* current_place);
     Place * add_after(PNP &pnp, string b, string current_action, Place* current_place);
-    
-    Place* addAction(string action, Place *place) {
-        addActionToStacks(action,place);
-        return pnp.addAction(action,place);
+
+    Place* addGeneralAction(string action, Place *place) {
+		Place *poe;
+		Place *n = pnp.addGeneralAction(action,place,&poe);
+        addActionToStacks(action,poe);
+        return n;
     }
+
+    Place* addGotoPattern(Place *pi, string next);
 
     vector<Place*> addSensingAction(string action, Place *place, vector<string> outcomes) {
         addActionToStacks(action,place);
         return pnp.addSensingAction(action,place,outcomes);
     }
 
-    void save(const char* filename=NULL); // if NULL it uses the name of the plan as file name
+    void save(const char* filename=NULL, bool noGraphics=false); // if NULL it uses the name of the plan as file name
 
 };
 

@@ -1,5 +1,3 @@
-#include <pnp_ros/connection_observer.h>
-
 #include <cstdio>
 #include <iostream>
 #include <sstream>
@@ -9,6 +7,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+#include <pnp/connection_observer.h>
 
 
 

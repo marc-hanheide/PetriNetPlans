@@ -11,7 +11,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include<ros/ros.h>
 #include<pnp/plan_observer.h>
 
 

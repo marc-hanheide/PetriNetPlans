@@ -5,7 +5,13 @@ execute_process(
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/parser
  		INPUT_FILE  ConditionScanner.yy
  		)
- 
+
+add_custom_target(parser_flex
+                  COMMAND flex ConditionScanner.yy
+		  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/parser
+		  SOURCES  parser/ConditionScanner.yy
+		 )
+
 IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/parser/ConditionScanner.cpp )
   MESSAGE(FATAL_ERROR "Could not generate the parser, please verify that flex is installed")
 ENDIF( NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/parser/ConditionScanner.cpp )
@@ -23,7 +29,8 @@ SET( pnp_SRC conditionchecker.cpp
 	utils.cpp
 	basic_plan/xml_plan_instantiator.cpp
 	parser/ConditionParser.cpp
-	parser/ConditionScanner.cpp )
+	parser/ConditionScanner.cpp
+	connection_observer.cpp )
 
 #comment the following lines to have traditional pnp without the learning functionality
 # ----- learnpnp ------
@@ -42,6 +49,7 @@ include_directories(${Boost_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 ADD_LIBRARY(pnp SHARED ${pnp_SRC})
+add_dependencies(pnp parser_flex)
 
 #search for libxml2
 find_package(LibXml2 REQUIRED)
@@ -68,12 +76,6 @@ if(CPPUNIT_FOUND)
 
 	target_link_libraries(test_pnp ${LIBS} ${CPPUNIT_LIBRARY} libpnp.so)
 endif(CPPUNIT_FOUND)
-
-#add the target to copy the library in lib
-
-# Install libpnp locally
-#MESSAGE("Project dir: ${PROJECT_SOURCE_DIR}")
-#install(TARGETS pnp DESTINATION ${PROJECT_SOURCE_DIR}/lib)
 
 # Install pnp in CMAKE_INSTALL_PREFIX (usually: /usr/local)
 install(TARGETS pnp DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
