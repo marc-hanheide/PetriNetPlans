@@ -1,7 +1,7 @@
-from AbstractCondition import AbstractCondition
+from AbstractTopicCondition import AbstractTopicCondition
 from std_msgs.msg import String
 
-class currentNode(AbstractCondition):
+class currentNode(AbstractTopicCondition):
 
     _topic_name = "/current_node"
 

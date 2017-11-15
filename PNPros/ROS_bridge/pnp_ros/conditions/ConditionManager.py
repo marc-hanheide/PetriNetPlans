@@ -1,6 +1,7 @@
 import os
 import glob
 import rospy
+import rosbag
 
 from AbstractCondition import AbstractCondition
 from importlib import import_module
@@ -39,5 +40,10 @@ class ConditionManager():
             # return true when the condition is not implemented, to avoid loops..
             return True
 
+    # TODO
     def dump_conditions(self, conditions_list):
-        raise NotImplementedError()
+        for cond in conditions_list:
+            try:
+                cond_instance = self.condition_instances[cond]
+            except KeyError:
+                rospy.logwarn("Condition " + cond + " not instanciated")

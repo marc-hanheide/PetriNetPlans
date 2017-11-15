@@ -1,8 +1,8 @@
 import rospy
-from AbstractCondition import AbstractCondition
+from AbstractTopicCondition import AbstractTopicCondition
 from topological_navigation.msg import GotoNodeActionGoal
 
-class currentGoal(AbstractCondition):
+class currentGoal(AbstractTopicCondition):
 
     _topic_name = "/topological_navigation/goal"
 
