@@ -1,9 +1,9 @@
 from AbstractCondition import AbstractCondition
 from std_msgs.msg import String
 
-class currentNode(AbstractCondition):
+class closestNode(AbstractCondition):
 
-    _topic_name = "/current_node"
+    _topic_name = "/closest_node"
 
     _topic_type = String
 
