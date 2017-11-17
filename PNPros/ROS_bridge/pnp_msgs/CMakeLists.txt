@@ -60,6 +60,8 @@ find_package(catkin REQUIRED COMPONENTS
    PNPLastEvent.srv
    PNPReward.srv
    PNPSetVariableValue.srv
+   PNPStartConditionsDump.srv
+   PNPStopConditionsDump.srv
  )
 
 ## Generate actions in the 'action' folder

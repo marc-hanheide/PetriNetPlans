@@ -1,5 +1,4 @@
-goto_WayPoint1;
-goto_WayPoint2; ! *if* estimatedTimeout_WayPoint2 *do* restart_plan !
-< closestNode_WayPoint3 ? goto_WayPoint2 : closestNode_WayPoint2 ? goto_WayPoint3 >
-goto_WayPoint3;
-goto_WayPoint4; ! *if* estimatedTimeout_WayPoint4 *do* restart_plan !
+<CurrentNode_WayPoint1 ? goto_WayPoint5 : (not CurrentNode_WayPoint1) ? goto_WayPoint1>
+goto_WayPoint2; ! *if* EstimatedTimeout_WayPoint2 *do* restart_plan !
+goto_WayPoint3; ! *if* EstimatedTimeout_WayPoint3 *do* restart_plan !
+goto_WayPoint4; ! *if* EstimatedTimeout_WayPoint4 *do* restart_plan !

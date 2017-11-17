@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 
-import threading
 import sys
 import os
 import roslib
@@ -69,6 +68,9 @@ def cancelAction(goalhandler):
     if goal.id in action_instances:
         action_instances[goal.id].stop_action()
 
+        # remove instance
+        del action_instances[goal.id]
+
 
 class PNPActionServer(object):
     #  create messages that are used to publish feedback/result
@@ -109,12 +111,10 @@ def handle_PNPConditionEval(req):
     cond = cond_elems[0]
     params = cond_elems[1:]
 
-    rospy.loginfo('Eval condition: ' + cond + ' ' + ' '.join(params))
-
     # evaluate through the condition manager
     cond_value = conditionManager.evaluate(cond, params)
 
-    rospy.loginfo('Condition ' + cond + ' value: ' + str(cond_value))
+    rospy.loginfo('Eval condition: ' + cond + ' ' + ' '.join(params) + ' value: ' + str(cond_value))
     return PNPConditionResponse(cond_value)
 
 if __name__ == '__main__':
