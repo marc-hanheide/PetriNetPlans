@@ -22,14 +22,18 @@ class AbstractAction():
     def _stop_action(self):
         raise NotImplementedError()
 
-    @abstractmethod
     def _is_action_done(self):
+        return self.is_goal_reached(self.params)
+
+    @classmethod
+    def is_goal_reached(cls, params):
+        ''' Static definition of goal reached for the action '''
         raise NotImplementedError()
 
     ## main execution thread
     def _actionThread_exec(self):
-        feedback = PNPActionFeedback()
         result = PNPResult()
+        feedback = PNPActionFeedback()
 
         self._start_action()
 
@@ -46,9 +50,11 @@ class AbstractAction():
 
             time.sleep(0.5)
 
+
         # send the result
         result.result = 'OK'
         self.goalhandler.set_succeeded(result, 'OK')
+
 
     def start_action(self):
         th = threading.Thread(None, self._actionThread_exec, args=())

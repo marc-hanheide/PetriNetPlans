@@ -1,8 +1,7 @@
 import rospy
 from AbstractServiceCondition import AbstractServiceCondition
 from strands_navigation_msgs.srv import EstimateTravelTime
-from topological_navigation.msg import GotoNodeActionGoal
-from std_msgs.msg import String
+from pnp_msgs.srv import PNPConditionValue
 
 class EstimatedTimeout(AbstractServiceCondition):
 
@@ -10,43 +9,37 @@ class EstimatedTimeout(AbstractServiceCondition):
 
     _service_type = EstimateTravelTime
 
-    _ADDITIVE_CONSTANT_TIMEOUT = rospy.Duration.from_sec(20)
-
-    def __init__(self):
-
-        rospy.Subscriber("/current_node", String, self._current_node_callback)
-
-        rospy.Subscriber("/topological_navigation/goal", GotoNodeActionGoal, self._current_goal_callback)
-
-        self.current_goal = None
-        self.current_node = None
-
-        super(EstimatedTimeout, self).__init__()
-
-    def _current_node_callback(self, data):
-        self.current_node = data.data
-
-    def _current_goal_callback(self, data):
-        self.current_goal = data
+    _ADDITIVE_CONSTANT_TIMEOUT = rospy.Duration.from_sec(5)
 
     def evaluate(self, params):
-        target_node = str(params[0])
+        condition_value_sp = rospy.ServiceProxy("/PNPConditionValue", PNPConditionValue)
 
-        # Return False if we are not in a topological node bcs in this case we don't have any estimate
-        if self.current_node and self.current_node != "none":
-            estimate_timeout = self.service_proxy(self.current_node, target_node).travel_time
+        current_node = condition_value_sp("CurrentNode").value
+        current_goal = condition_value_sp("CurrentGoal").value
+        goal_starting_time = condition_value_sp("GoalStartingTime").value
+        current_nav_goal = condition_value_sp("CurrentNavigationGoal").value
 
-            starting_time = self.current_goal.goal_id.stamp
-            now = rospy.get_rostime()
+        if current_goal.split('_')[0] == "goto" :
 
-            time_passed = now - starting_time
+            # Return False if we are not in a topological node bcs in this case we don't have any estimate
+            if current_nav_goal.lower() != "none" and current_node.lower() != "none":
+                target_node = current_nav_goal
 
-            # check timeout expiration
-            if time_passed.to_nsec() > estimate_timeout.to_nsec() + self._ADDITIVE_CONSTANT_TIMEOUT.to_nsec():
-                # update the listeners now
-                for listener in self._updates_listeners:
-                    listener.receive_update(self.__name__, target_node)
+                estimate_timeout = self.service_proxy(current_node, target_node).travel_time
 
-                return True
+                starting_time = rospy.Time.from_sec(float(goal_starting_time))
+                now = rospy.Time.now()
+
+                time_passed = now - starting_time
+
+                # check timeout expiration
+                if time_passed.to_sec() > estimate_timeout.to_sec() + self._ADDITIVE_CONSTANT_TIMEOUT.to_sec():
+                    # update the listeners now
+                    for listener in self._updates_listeners:
+                        listener.receive_update(self.__name__, target_node)
+
+                    return True
+        else:
+            rospy.logwarn("The current goal is not a navigation goal, not timeout estimate")
 
         return False

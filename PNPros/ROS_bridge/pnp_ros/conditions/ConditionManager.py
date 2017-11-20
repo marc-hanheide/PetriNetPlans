@@ -5,11 +5,11 @@ import rosbag
 import inspect
 import threading
 
-from pnp_msgs.srv import PNPStartConditionsDump, PNPStopConditionsDump
-from AbstractCondition import AbstractCondition, AbstractConditionListener
+from pnp_msgs.srv import PNPStartConditionsDump, PNPStartConditionsDumpResponse, PNPStopConditionsDump, PNPStopConditionsDumpResponse
+from AbstractCondition import AbstractCondition, ConditionListener
 from importlib import import_module
 
-class ConditionManager(AbstractConditionListener):
+class ConditionManager(ConditionListener):
 
     _condition_instances = {}
     _bags = {}
@@ -37,22 +37,35 @@ class ConditionManager(AbstractConditionListener):
                     rospy.logwarn("Class " + name + " does not inherit from AbstractCondition")
 
         # Initialize the condition dumping services
-        self.start_dump_service_provider = rospy.Service("start_conditions_dump", PNPStartConditionsDump, self._start_conditions_dump_cb)
-        self.stop_dump_service_provider = rospy.Service("stop_conditions_dump", PNPStopConditionsDump, self._stop_conditions_dump_cb)
+        self._start_dump_service_provider = rospy.Service("start_conditions_dump", PNPStartConditionsDump, self._start_conditions_dump_cb)
+        self._stop_dump_service_provider = rospy.Service("stop_conditions_dump", PNPStopConditionsDump, self._stop_conditions_dump_cb)
 
     def __del__(self):
-        if self.start_dump_service_provider:
-            self.start_dump_service_provider.shutdown()
-        if self.stop_dump_service_provider:
-            self.stop_dump_service_provider.shutdown()
+        if self._start_dump_service_provider:
+            self._start_dump_service_provider.shutdown()
+        if self._stop_dump_service_provider:
+            self._stop_dump_service_provider.shutdown()
 
     def evaluate(self, condition_name, params):
         try:
-            return self._condition_instances[condition_name].evaluate(params)
+            res = self._condition_instances[condition_name].evaluate(params)
+            #rospy.loginfo("Evaluating condition " + condition_name + " " + str(params) + ": " + str(res))
+            return res
         except KeyError:
             rospy.logwarn("Condition " + condition_name + " not implemented")
             # return true when the condition is not implemented, to avoid loops..
             return True
+
+    def get_value(self, condition_name):
+        try:
+            res = self._condition_instances[condition_name].get_value()
+            #rospy.loginfo("Geting value of condition " + condition_name + ": " + res)
+            return res
+        except KeyError:
+            rospy.logwarn("Condition " + condition_name + " not implemented")
+            # return true when the condition is not implemented, to avoid loops..
+            return None
+
 
     def _start_conditions_dump_cb(self, req):
         bag_name = req.bag_name
@@ -66,10 +79,10 @@ class ConditionManager(AbstractConditionListener):
                 bag_name : bag
             })
 
-            return True
+            return PNPStartConditionsDumpResponse(True)
         else:
             rospy.logwarn("Dumping in bag " + bag_name + " already running")
-            return False
+            return PNPStartConditionsDumpResponse(False)
 
     def _stop_conditions_dump_cb(self, req):
         bag_name = req.bag_name
@@ -82,10 +95,10 @@ class ConditionManager(AbstractConditionListener):
             del self._bag[bag_name]
 
             rospy.loginfo("Closed bag " + bag_name)
-            return True
+            return PNPStopConditionsDumpResponse(True)
         else:
             rospy.logwarn("No running dumping in bag " + bag_name + " found")
-            return False
+            return PNPStopConditionsDumpResponse(False)
 
     def receive_update(self, condition_name, condition_value):
         # save the new value in all the running bags

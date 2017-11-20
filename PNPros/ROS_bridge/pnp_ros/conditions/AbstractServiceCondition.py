@@ -9,6 +9,10 @@ class AbstractServiceCondition(AbstractCondition):
         # create service proxy
         self.service_proxy = rospy.ServiceProxy(self._service_name, self._service_type)
 
+    # TODO: is this useful for service conditions?
+    def get_value(self):
+        return None
+
     @abstractproperty
     def _service_name(self):
         raise NotImplementedError()

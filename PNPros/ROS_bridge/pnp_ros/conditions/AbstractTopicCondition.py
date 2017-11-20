@@ -19,6 +19,9 @@ class AbstractTopicCondition(AbstractCondition):
         for listener in self._updates_listeners:
             listener.receive_update(self.__name__, self.last_value)
 
+    def get_value(self):
+        return self.last_value
+
     @abstractmethod
     def _get_value_from_data(self, data):
         raise NotImplementedError()

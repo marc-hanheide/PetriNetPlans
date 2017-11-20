@@ -10,72 +10,22 @@ import actionlib
 sys.path.append(os.path.join(os.path.dirname(__file__), '../actions'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../conditions'))
 
-from importlib import import_module
-from AbstractAction import AbstractAction
+from ActionManager import ActionManager
 from ConditionManager import ConditionManager
 from pnp_msgs.msg import PNPActionFeedback, PNPResult, PNPAction
-from pnp_msgs.srv import PNPCondition, PNPConditionResponse
+from pnp_msgs.srv import PNPCondition, PNPConditionResponse, PNPConditionValue, PNPConditionValueResponse
 
 roslib.load_manifest('pnp_ros')
 PKG = 'pnp_ros'
 NODE = 'pnpactionserver'
-action_instances = {}
 conditionManager = None
-
-
-## find the action implementation
-def find_action_implementation(action_name):
-    try:
-        action_class = getattr(import_module(action_name), action_name)
-    except (ImportError, AttributeError):
-        rospy.logwarn("action " + action_name + " not implemented")
-    else:
-        if issubclass(action_class, AbstractAction):
-            return action_class
-        else:
-            rospy.logwarn("class " + action_class + " must inherit from AbstractAction")
-
-def startAction(goalhandler):
-    goal = goalhandler.get_goal()
-    print "Starting " + goal.name + " " + goal.params
-
-    # search for an implementation of the action
-    action = find_action_implementation(goal.name)
-
-    if action:
-        # accept the goal
-        goalhandler.set_accepted()
-
-        # Instantiate the action
-        action_instance = action(goalhandler, goal.params)
-
-        # add action instance to the dict
-        action_instances.update({
-            goal.id : action_instance
-        })
-
-        # start the action
-        action_instances[goal.id].start_action()
-
-
-def cancelAction(goalhandler):
-    goal = goalhandler.get_goal()
-    print "Terminating " + goal.name + " " + goal.params
-    # accept the goal
-    goalhandler.set_accepted()
-
-    # stop the action
-    if goal.id in action_instances:
-        action_instances[goal.id].stop_action()
-
-        # remove instance
-        del action_instances[goal.id]
 
 
 class PNPActionServer(object):
     #  create messages that are used to publish feedback/result
     _feedback = PNPActionFeedback()
     _result = PNPResult()
+    _actionManager = ActionManager()
 
     def __init__(self, name):
         self._action_server_name = name
@@ -94,17 +44,17 @@ class PNPActionServer(object):
         goal = goalhandler.get_goal()
 
         # publish info to the console for the user
-        rospy.loginfo('%s: Starting action %s %s' %
+        rospy.loginfo('%s: Action %s %s' %
                       (self._action_server_name, goal.name, goal.params))
         if goal.function == 'start':
             # start executing the action
-            startAction(goalhandler)
+            self._actionManager.start_action(goalhandler)
         elif goal.function == 'interrupt':
-            #  print '### Interrupt ',goal.name
-            cancelAction(goalhandler)
+            # print '### Interrupt ',goal.name
+            self._actionManager.interrupt_action(goalhandler)
         elif goal.function == 'end':
-            #  print '### End ',goal.name
-            cancelAction(goalhandler)
+            # print '### End ',goal.name
+            self._actionManager.end_action(goalhandler)
 
 def handle_PNPConditionEval(req):
     cond_elems = req.cond.split("_")
@@ -112,10 +62,24 @@ def handle_PNPConditionEval(req):
     params = cond_elems[1:]
 
     # evaluate through the condition manager
-    cond_value = conditionManager.evaluate(cond, params)
+    cond_truth_value = conditionManager.evaluate(cond, params)
 
-    rospy.loginfo('Eval condition: ' + cond + ' ' + ' '.join(params) + ' value: ' + str(cond_value))
-    return PNPConditionResponse(cond_value)
+    if cond_truth_value:
+        rospy.loginfo('Eval condition: ' + cond + ' ' + ' '.join(params) + ' value: ' + str(cond_truth_value))
+
+    return PNPConditionResponse(cond_truth_value)
+
+
+def handle_PNPConditionValue(req):
+    cond = req.cond
+
+    cond_value = str(conditionManager.get_value(cond))
+
+    if cond_value:
+        #rospy.loginfo('Condition: ' + cond + ' value: ' + cond_value)
+        return PNPConditionValueResponse(cond_value)
+    else:
+        return PNPConditionValueResponse("None")
 
 if __name__ == '__main__':
     rospy.init_node(NODE)
@@ -124,8 +88,15 @@ if __name__ == '__main__':
     conditionManager = ConditionManager()
 
     PNPActionServer("PNP")
+
+    # Service which returns truth value of condition
     rospy.Service('PNPConditionEval',
                   PNPCondition,
                   handle_PNPConditionEval)
+
+    # Service which returns value of condition
+    rospy.Service('PNPConditionValue',
+                  PNPConditionValue,
+                  handle_PNPConditionValue)
 
     rospy.spin()

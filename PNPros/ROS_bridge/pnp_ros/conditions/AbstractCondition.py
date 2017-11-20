@@ -10,13 +10,17 @@ class AbstractCondition():
     def evaluate(self, params):
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_value(self):
+        raise NotImplementedError()
+
     def register_updates_listener(self, obj):
         if issubclass(obj, AbstractConditionListener):
             self._updates_listeners.append(obj)
         else:
             rospy.logwarn("Object " + obj + " is not a AbstractConditionListener subclass, cannot be registered as listener")
 
-class AbstractConditionListener():
+class ConditionListener():
     __metaclass__ = ABCMeta
 
     @abstractmethod

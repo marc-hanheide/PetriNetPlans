@@ -56,6 +56,7 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    PNPClearBuffer.srv
    PNPCondition.srv
+   PNPConditionValue.srv
    PNPGetVariableValue.srv
    PNPLastEvent.srv
    PNPReward.srv
@@ -75,8 +76,7 @@ find_package(catkin REQUIRED COMPONENTS
  generate_messages(
    DEPENDENCIES
    actionlib_msgs
-   
- )
+)
 
 ###################################
 ## catkin specific configuration ##

@@ -4,13 +4,14 @@ import actionlib
 from topological_navigation.msg import GotoNodeActionGoal, GotoNodeAction
 from actionlib_msgs.msg import GoalID
 from AbstractAction import AbstractAction
+from pnp_msgs.srv import PNPCondition
 
 
 class goto(AbstractAction):
 
     def _start_action(self):
 
-        goal_topo = str(self.params)
+        goal_topo = str(self.params[0])
 
         self.nav_goal = GotoNodeActionGoal()
         self.nav_goal.goal.target = goal_topo
@@ -30,13 +31,22 @@ class goto(AbstractAction):
         pub = rospy.Publisher('/topological_navigation/cancel', GoalID, queue_size=10)
         pub.publish(cancel_goal)
 
-    def _is_action_done(self):
-        if self.nav_ac.get_result():
-            # print the result of navigation
-            nav_res = self.nav_ac.get_result()
-            rospy.loginfo("Result: " + str(nav_res))
-            nav_state = self.nav_ac.get_state()
-            rospy.loginfo("State: " + str(nav_state))
-            return True
-        else:
-            return False
+    @classmethod
+    def is_goal_reached(cls, params):
+        '''Check condition CurrentNode'''
+        goal_node = str(params[0])
+
+        service_proxy = rospy.ServiceProxy("/PNPConditionEval", PNPCondition)
+
+        condition = "CurrentNode_" + goal_node
+        return service_proxy(condition).truth_value
+
+        #if self.nav_ac.get_result():
+        #    # print the result of navigation
+        #    nav_res = self.nav_ac.get_result()
+        #    rospy.loginfo("Result: " + str(nav_res))
+        #    nav_state = self.nav_ac.get_state()
+        #    rospy.loginfo("State: " + str(nav_state))
+        #    return True
+        #else:
+        #    return False

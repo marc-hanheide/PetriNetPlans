@@ -1,4 +1,3 @@
-string bag_name
-string[] conditions 
+string bag_name 
 ---
 int8 succeeded
