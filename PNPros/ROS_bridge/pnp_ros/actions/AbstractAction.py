@@ -1,4 +1,4 @@
-import time
+import rospy
 import threading
 
 from abc import ABCMeta, abstractmethod
@@ -37,19 +37,22 @@ class AbstractAction():
 
         self._start_action()
 
+        # rate 0.5hz
+        r = rospy.Rate(0.5)
+
         # wait until the action is done
         while not self._is_action_done():
             # request to cancel action
             if self.cancel_event.isSet():
-                self._stop_action()
                 break
 
             # send feedback
             feedback.feedback = 'running ...'
             self.goalhandler.publish_feedback(feedback)
 
-            time.sleep(0.5)
+            r.sleep()
 
+        self._stop_action()
 
         # send the result
         result.result = 'OK'
@@ -60,5 +63,5 @@ class AbstractAction():
         th = threading.Thread(None, self._actionThread_exec, args=())
         th.start()
 
-    def stop_action(self):
+    def interrupt_action(self):
         self.cancel_event.set()

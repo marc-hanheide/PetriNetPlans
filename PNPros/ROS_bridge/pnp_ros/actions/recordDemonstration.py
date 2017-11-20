@@ -17,10 +17,11 @@ class recordDemonstration(AbstractAction):
         # get the last interrupted goal
         interrupted_goal = service_proxy(condition).value.split("_")
 
-        self.params = interrupted_goal
-        goal_action = self.params[0]
-        goal_params = self.params[1:]
+        goal_action = interrupted_goal[0]
+        goal_params = interrupted_goal[1:]
+
         goal_str = goal_action + "_" + "_".join(goal_params)
+        print "Recording ", goal_str, "..."
 
         # call the starting service
         starting_sp = rospy.ServiceProxy("start_conditions_dump", PNPStartConditionsDump)
@@ -35,7 +36,9 @@ class recordDemonstration(AbstractAction):
 
     def _stop_action(self):
         # call the stopping service
+        print "___________recordDemonstration", self._demonstration_filename
         if self._demonstration_filename:
+            print "___________recordDemonstration"
             stopping_sp = rospy.ServiceProxy("stop_conditions_dump", PNPStopConditionsDump)
 
             response = stopping_sp(self._demonstration_filename)
@@ -46,8 +49,17 @@ class recordDemonstration(AbstractAction):
                 rospy.logwarn("Error stopping recording demonstration")
 
     @classmethod
-    def is_goal_reached(cls, params):
-        goal_action = params[0]
-        goal_params = params[1:]
+    def is_goal_reached(cls, _):
+        # Get the action for which we want a demonstration taking the last interrupted goal
+        service_proxy = rospy.ServiceProxy("/PNPConditionValue", PNPConditionValue)
+
+        condition = "InterruptedGoal"
+
+        # get the last interrupted goal
+        interrupted_goal = service_proxy(condition).value.split("_")
+
+        goal_action = interrupted_goal[0]
+        goal_params = interrupted_goal[1:]
+
         # Call the ActionManager static method
         return ActionManager.is_goal_reached(goal_action, goal_params)

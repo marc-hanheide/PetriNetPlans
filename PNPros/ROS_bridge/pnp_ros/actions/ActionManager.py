@@ -37,17 +37,22 @@ class ActionManager():
             goalhandler.set_accepted()
 
             ## check that the action goal is not already reached
+            if not self.is_goal_reached(goal.name, goal.params.split("_")):
+                # Instantiate the action
+                action_instance = action(goalhandler, goal.params.split("_"))
 
-            # Instantiate the action
-            action_instance = action(goalhandler, goal.params.split("_"))
+                # add action instance to the dict
+                self._action_instances.update({
+                    goal.id : action_instance
+                })
 
-            # add action instance to the dict
-            self._action_instances.update({
-                goal.id : action_instance
-            })
-
-            # start the action
-            self._action_instances[goal.id].start_action()
+                # start the action
+                self._action_instances[goal.id].start_action()
+            else:
+                # send the result
+                result = PNPResult()
+                result.result = 'OK'
+                goalhandler.set_succeeded(result, 'OK')
 
     def interrupt_action(self, goalhandler):
         ''' Action interrupted before it finished the execution '''
@@ -59,9 +64,9 @@ class ActionManager():
 
         # stop the action
         if goal.id in self._action_instances.keys():
-            self._action_instances[goal.id].stop_action()
+            self._action_instances[goal.id].interrupt_action()
 
-
+            # publish interrupted goal
             self._interrupted_goal_publisher.publish(goal)
 
             # remove instance
@@ -69,16 +74,15 @@ class ActionManager():
 
 
     def end_action(self, goalhandler):
-        ''' Action ended its execution '''
+        ''' Action ended its execution (this is called after the action is already finished)'''
         goal = goalhandler.get_goal()
         print "Ending " + goal.name + " " + goal.params
 
         # accept the goal
         goalhandler.set_accepted()
 
-        # stop the action
+        # end the action
         if goal.id in self._action_instances.keys():
-            self._action_instances[goal.id].stop_action()
 
             # remove instance
             del self._action_instances[goal.id]
@@ -89,8 +93,8 @@ class ActionManager():
         # search for an implementation of the action
         action = ActionManager._find_action_implementation(action_name)
 
-        if action:
 
+        if action:
             # Instantiate the action
             return action.is_goal_reached(parameters)
         else:

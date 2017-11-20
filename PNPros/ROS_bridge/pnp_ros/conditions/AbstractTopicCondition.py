@@ -17,7 +17,7 @@ class AbstractTopicCondition(AbstractCondition):
 
         # update all the listeners
         for listener in self._updates_listeners:
-            listener.receive_update(self.__name__, self.last_value)
+            listener.receive_update(self._topic_name, data)
 
     def get_value(self):
         return self.last_value

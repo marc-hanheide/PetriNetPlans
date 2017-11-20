@@ -9,7 +9,7 @@ class say(AbstractAction):
         #self.starting_time = rospy.Time.now()
 
     def _stop_action(self):
-        rsopy.loginfo('Finished saying "' + " ".join(self.params) + '"')
+        rospy.loginfo('Finished saying "' + " ".join(self.params) + '"')
 
     @classmethod
     def is_goal_reached(cls, params):
@@ -17,7 +17,7 @@ class say(AbstractAction):
         condition_value_sp = rospy.ServiceProxy("/PNPConditionValue", PNPConditionValue)
         condition_eval_sp = rospy.ServiceProxy("/PNPConditionEval", PNPCondition)
 
-        # The goal is reached when we are actually saying what we want to say
+        # The goal is reached when we have finished saying what we actually want to say
         current_goal_cond = "CurrentGoal_" + cls.__name__ + "_" + "_".join(params)
         if condition_eval_sp(current_goal_cond).truth_value:
             starting_time = condition_value_sp("GoalStartingTime").value
