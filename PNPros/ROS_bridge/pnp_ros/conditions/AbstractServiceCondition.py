@@ -6,6 +6,7 @@ class AbstractServiceCondition(AbstractCondition):
     __metaclass__ = ABCMeta
 
     def __init__(self):
+        super(AbstractServiceCondition, self).__init__()
         # create service proxy
         self.service_proxy = rospy.ServiceProxy(self._service_name, self._service_type)
 

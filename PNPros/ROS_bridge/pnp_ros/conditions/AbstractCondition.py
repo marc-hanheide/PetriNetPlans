@@ -4,7 +4,8 @@ from abc import ABCMeta, abstractmethod
 class AbstractCondition():
     __metaclass__ = ABCMeta
 
-    _updates_listeners = []
+    def __init__(self):
+        self._updates_listeners = []
 
     @abstractmethod
     def evaluate(self, params):

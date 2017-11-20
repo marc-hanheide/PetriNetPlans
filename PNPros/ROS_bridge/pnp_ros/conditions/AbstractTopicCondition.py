@@ -6,6 +6,7 @@ class AbstractTopicCondition(AbstractCondition):
     __metaclass__ = ABCMeta
 
     def __init__(self):
+        super(AbstractTopicCondition, self).__init__()
         # subscribe to the topic with a callback
         rospy.Subscriber(self._topic_name, self._topic_type, self._callback)
 

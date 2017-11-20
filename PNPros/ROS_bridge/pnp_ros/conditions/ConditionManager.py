@@ -31,6 +31,8 @@ class ConditionManager(ConditionListener):
                     # Register this class as updater listener
                     condition_instance.register_updates_listener(self)
 
+                    rospy.loginfo("ConditionManager registered as listener of " + name)
+
                     self._condition_instances.update({
                         name : condition_instance
                     })
@@ -90,7 +92,6 @@ class ConditionManager(ConditionListener):
     def _stop_conditions_dump_cb(self, req):
         bag_name = req.bag_name
 
-        print "___________________________________________"
         if bag_name in self._bags.keys():
             # close the bag
             self._bags[bag_name].close()
