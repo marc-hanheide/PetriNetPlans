@@ -2,7 +2,7 @@ import rospy
 
 from AbstractAction import AbstractAction
 from ActionManager import ActionManager
-from pnp_msgs.srv import PNPStartConditionsDump, PNPStopConditionsDump, PNPConditionValue
+from pnp_msgs.srv import PNPStartStateActionSaver, PNPStopStateActionSaver, PNPConditionValue
 
 class recordDemonstration(AbstractAction):
 
@@ -24,7 +24,7 @@ class recordDemonstration(AbstractAction):
         print "Recording ", goal_str, "..."
 
         # call the starting service
-        starting_sp = rospy.ServiceProxy("start_conditions_dump", PNPStartConditionsDump)
+        starting_sp = rospy.ServiceProxy("start_state_action_saver", PNPStartStateActionSaver)
 
         self._demonstration_filename = "demonstration_" + goal_str + "_" + str(rospy.Time.now().to_nsec()) + ".bag"
         response = starting_sp(self._demonstration_filename)
@@ -37,7 +37,7 @@ class recordDemonstration(AbstractAction):
     def _stop_action(self):
         # call the stopping service
         if self._demonstration_filename:
-            stopping_sp = rospy.ServiceProxy("stop_conditions_dump", PNPStopConditionsDump)
+            stopping_sp = rospy.ServiceProxy("stop_state_action_saver", PNPStopStateActionSaver)
 
             response = stopping_sp(self._demonstration_filename)
 
@@ -60,4 +60,6 @@ class recordDemonstration(AbstractAction):
         goal_params = interrupted_goal[1:]
 
         # Call the ActionManager static method
-        return ActionManager.is_goal_reached(goal_action, goal_params)
+        if goal_action:
+            return ActionManager.is_goal_reached(goal_action, goal_params)
+        return False

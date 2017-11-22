@@ -20,7 +20,7 @@ class AbstractTopicCondition(AbstractCondition):
 
         # update all the listeners
         for listener in self._updates_listeners:
-            listener.receive_update(self._topic_name, data)
+            listener.receive_update(self)
 
     def get_value(self):
         return self.last_value
@@ -46,7 +46,7 @@ class AbstractTopicCondition(AbstractCondition):
         else:
             rospy.logwarn("Object " + str(obj.__class__) + " is not a ConditionListener subclass, cannot be registered as listener")
 
-    def _condition_name(self):
+    def get_name(self):
         return self.__class__.__name__
 
 class ConditionListener():

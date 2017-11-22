@@ -4,16 +4,14 @@ import rospy
 import rosbag
 import inspect
 
-from pnp_msgs.srv import PNPStartConditionsDump, PNPStartConditionsDumpResponse, PNPStopConditionsDump, PNPStopConditionsDumpResponse
 from AbstractCondition import AbstractCondition
-from AbstractTopicCondition import AbstractTopicCondition, ConditionListener
+from AbstractTopicCondition import AbstractTopicCondition
 from importlib import import_module
 
-class ConditionManager(ConditionListener):
+class ConditionManager():
 
     def __init__(self):
         self._condition_instances = {}
-        self._bags = {}
 
         # Initialize all the classes in current folder which implement AbstractCondition
         for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
@@ -27,12 +25,6 @@ class ConditionManager(ConditionListener):
                     # Instanciate the condition
                     condition_instance = condition_class()
 
-                    # Register this class as updater listener
-                    if issubclass(condition_class, AbstractTopicCondition):
-                        condition_instance.register_updates_listener(self)
-
-                    rospy.loginfo("ConditionManager registered as listener of " + name)
-
                     self._condition_instances.update({
                         name : condition_instance
                     })
@@ -40,16 +32,6 @@ class ConditionManager(ConditionListener):
                     rospy.loginfo("Initialized condition " + name)
                 else:
                     rospy.logwarn("Class " + name + " does not inherit from AbstractCondition")
-
-        # Initialize the condition dumping services
-        self._start_dump_service_provider = rospy.Service("start_conditions_dump", PNPStartConditionsDump, self._start_conditions_dump_cb)
-        self._stop_dump_service_provider = rospy.Service("stop_conditions_dump", PNPStopConditionsDump, self._stop_conditions_dump_cb)
-
-    def __del__(self):
-        if self._start_dump_service_provider:
-            self._start_dump_service_provider.shutdown()
-        if self._stop_dump_service_provider:
-            self._stop_dump_service_provider.shutdown()
 
     def evaluate(self, condition_name, params):
         try:
@@ -71,45 +53,18 @@ class ConditionManager(ConditionListener):
             # return true when the condition is not implemented, to avoid loops..
             return None
 
-    def _start_conditions_dump_cb(self, req):
-        bag_name = req.bag_name
+    def register_condition_listener(self, listener):
+        for (cond_name, cond_instance) in self._condition_instances.items():
+            # Register this class as updater listener
+            if issubclass(cond_instance.__class__, AbstractTopicCondition):
+                cond_instance.register_updates_listener(listener)
+                rospy.loginfo(listener.__class__.__name__ + " registered as listener of "\
+                            + cond_name)
 
-        if not bag_name in self._bags.keys():
-            # create new bag
-            bag = rosbag.Bag(bag_name, "w")
+    # Return a list with the current state of all the conditions
+    def get_conditions_dump(self):
+        condition_dump = []
+        for (cond_name, cond_instance) in self._condition_instances.items():
+            condition_dump.append(cond_name + "_" + str(cond_instance.get_value()))
 
-            # insert bag in dict
-            self._bags.update({
-                bag_name : bag
-            })
-
-            return PNPStartConditionsDumpResponse(True)
-        else:
-            rospy.logwarn("Dumping in bag " + bag_name + " already running")
-            return PNPStartConditionsDumpResponse(False)
-
-    def _stop_conditions_dump_cb(self, req):
-        bag_name = req.bag_name
-
-        if bag_name in self._bags.keys():
-            # close the bag
-            self._bags[bag_name].close()
-
-            # remove the bag from the dict
-            del self._bags[bag_name]
-
-            rospy.loginfo("Closed bag " + bag_name)
-            return PNPStopConditionsDumpResponse(True)
-        else:
-            rospy.logwarn("No running dumping in bag " + bag_name + " found")
-            return PNPStopConditionsDumpResponse(False)
-
-    def receive_update(self, *_):
-        # Each update we receive, whatever it is, we save all the conditions
-        for (condition_name, condition_instance) in self._condition_instances.items():
-            if issubclass(condition_instance.__class__, AbstractTopicCondition):
-                condition_data = condition_instance.get_data()
-                # save the new value in all the running bags
-                for bag in self._bags.values():
-                    #print "[BAG", bag.filename,"]" ,"Writing", condition_value, "from", condition_name
-                    bag.write(condition_name, condition_data)
+        return condition_dump

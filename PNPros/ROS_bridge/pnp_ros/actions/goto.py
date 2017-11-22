@@ -10,7 +10,6 @@ from pnp_msgs.srv import PNPCondition
 class goto(AbstractAction):
 
     def _start_action(self):
-
         goal_topo = str(self.params[0])
 
         self.nav_goal = GotoNodeActionGoal()

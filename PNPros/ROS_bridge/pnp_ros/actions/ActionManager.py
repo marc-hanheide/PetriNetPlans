@@ -1,36 +1,40 @@
+import os
+import glob
 import rospy
+import inspect
 from importlib import import_module
 from AbstractAction import AbstractAction
 from pnp_msgs.msg import PNPResult, PNPGoal
 
 class ActionManager():
 
-
-    _action_instances = {}
-
     def __init__(self):
-        # start interrupted_goal topic
+        self._action_instances = {}
+        self._implemented_actions = []
+
+        # Find all the actions implemented
+        for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
+            name = os.path.splitext(os.path.basename(file))[0]
+            action_class = ActionManager._find_action_implementation(name)
+            if action_class:
+                self._implemented_actions.append(action_class)
+
+        # Start interrupted_goal topic
         self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)
 
-
-    @staticmethod
-    def _find_action_implementation(action_name):
-        try:
-            action_class = getattr(import_module(action_name), action_name)
-        except (ImportError, AttributeError):
-            rospy.logwarn("action " + action_name + " not implemented")
-        else:
-            if issubclass(action_class, AbstractAction):
-                return action_class
-            else:
-                rospy.logwarn("class " + action_class + " must inherit from AbstractAction")
+    def get_actions(self):
+        return [action.__name__ for action in self._implemented_actions]
 
     def start_action(self, goalhandler):
         goal = goalhandler.get_goal()
         print "Starting " + goal.name + " " + goal.params
 
         # search for an implementation of the action
-        action = self._find_action_implementation(goal.name)
+        action = None
+        for action_impl in self._implemented_actions:
+            if action_impl.__name__ == goal.name:
+                action = action_impl
+                break
 
         if action:
             # accept the goal
@@ -72,7 +76,6 @@ class ActionManager():
             # remove instance
             del self._action_instances[goal.id]
 
-
     def end_action(self, goalhandler):
         ''' Action ended its execution (this is called after the action is already finished)'''
         goal = goalhandler.get_goal()
@@ -87,15 +90,26 @@ class ActionManager():
             # remove instance
             del self._action_instances[goal.id]
 
-
     @staticmethod
     def is_goal_reached(action_name, parameters):
         # search for an implementation of the action
         action = ActionManager._find_action_implementation(action_name)
-
 
         if action:
             # Instantiate the action
             return action.is_goal_reached(parameters)
         else:
             return False
+
+    @staticmethod
+    def _find_action_implementation(action_name):
+        try:
+            action_class = getattr(import_module(action_name), action_name)
+        except (ImportError, AttributeError):
+            rospy.logwarn("action " + action_name + " not implemented")
+        else:
+            if issubclass(action_class, AbstractAction) and not inspect.isabstract(action_class):
+                return action_class
+            else:
+                rospy.logwarn("class " + action_class.__name__ + " must inherit from AbstractAction")
+                return None
