@@ -12,8 +12,10 @@ class AbstractTopicCondition(AbstractCondition):
 
         # last_data will be None until the subscribed topic will return some data
         self.last_value = None
+        self.last_data = None
 
     def _callback(self, data):
+        self.last_data = data
         self.last_value = self._get_value_from_data(data)
 
         # update all the listeners
@@ -22,6 +24,9 @@ class AbstractTopicCondition(AbstractCondition):
 
     def get_value(self):
         return self.last_value
+
+    def get_data(self):
+        return self.last_data
 
     @abstractmethod
     def _get_value_from_data(self, data):
@@ -33,4 +38,20 @@ class AbstractTopicCondition(AbstractCondition):
 
     @abstractproperty
     def _topic_type(self):
+        raise NotImplementedError()
+
+    def register_updates_listener(self, obj):
+        if issubclass(obj.__class__, ConditionListener):
+            self._updates_listeners.append(obj)
+        else:
+            rospy.logwarn("Object " + str(obj.__class__) + " is not a ConditionListener subclass, cannot be registered as listener")
+
+    def _condition_name(self):
+        return self.__class__.__name__
+
+class ConditionListener():
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def receive_update(self, condition_name, condition_value):
         raise NotImplementedError()

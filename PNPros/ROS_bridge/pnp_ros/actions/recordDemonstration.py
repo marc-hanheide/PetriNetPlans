@@ -36,9 +36,7 @@ class recordDemonstration(AbstractAction):
 
     def _stop_action(self):
         # call the stopping service
-        print "___________recordDemonstration", self._demonstration_filename
         if self._demonstration_filename:
-            print "___________recordDemonstration"
             stopping_sp = rospy.ServiceProxy("stop_conditions_dump", PNPStopConditionsDump)
 
             response = stopping_sp(self._demonstration_filename)

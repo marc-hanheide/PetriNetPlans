@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-
 import sys
 import os
 import roslib
@@ -19,7 +18,6 @@ roslib.load_manifest('pnp_ros')
 PKG = 'pnp_ros'
 NODE = 'pnpactionserver'
 conditionManager = None
-
 
 class PNPActionServer(object):
     #  create messages that are used to publish feedback/result
@@ -68,7 +66,6 @@ def handle_PNPConditionEval(req):
         rospy.loginfo('Eval condition: ' + cond + ' ' + ' '.join(params) + ' value: ' + str(cond_truth_value))
 
     return PNPConditionResponse(cond_truth_value)
-
 
 def handle_PNPConditionValue(req):
     cond = req.cond

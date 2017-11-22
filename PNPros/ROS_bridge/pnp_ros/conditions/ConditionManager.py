@@ -3,18 +3,17 @@ import glob
 import rospy
 import rosbag
 import inspect
-import threading
 
 from pnp_msgs.srv import PNPStartConditionsDump, PNPStartConditionsDumpResponse, PNPStopConditionsDump, PNPStopConditionsDumpResponse
-from AbstractCondition import AbstractCondition, ConditionListener
+from AbstractCondition import AbstractCondition
+from AbstractTopicCondition import AbstractTopicCondition, ConditionListener
 from importlib import import_module
 
 class ConditionManager(ConditionListener):
 
-    _condition_instances = {}
-    _bags = {}
-
     def __init__(self):
+        self._condition_instances = {}
+        self._bags = {}
 
         # Initialize all the classes in current folder which implement AbstractCondition
         for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
@@ -29,7 +28,8 @@ class ConditionManager(ConditionListener):
                     condition_instance = condition_class()
 
                     # Register this class as updater listener
-                    condition_instance.register_updates_listener(self)
+                    if issubclass(condition_class, AbstractTopicCondition):
+                        condition_instance.register_updates_listener(self)
 
                     rospy.loginfo("ConditionManager registered as listener of " + name)
 
@@ -71,7 +71,6 @@ class ConditionManager(ConditionListener):
             # return true when the condition is not implemented, to avoid loops..
             return None
 
-
     def _start_conditions_dump_cb(self, req):
         bag_name = req.bag_name
 
@@ -105,8 +104,12 @@ class ConditionManager(ConditionListener):
             rospy.logwarn("No running dumping in bag " + bag_name + " found")
             return PNPStopConditionsDumpResponse(False)
 
-    def receive_update(self, condition_name, condition_value):
-        # save the new value in all the running bags
-        for bag in self._bags.values():
-            #print "[BAG", bag.filename,"]" ,"Writing", condition_value, "from", condition_name
-            bag.write(condition_name, condition_value)
+    def receive_update(self, *_):
+        # Each update we receive, whatever it is, we save all the conditions
+        for (condition_name, condition_instance) in self._condition_instances.items():
+            if issubclass(condition_instance.__class__, AbstractTopicCondition):
+                condition_data = condition_instance.get_data()
+                # save the new value in all the running bags
+                for bag in self._bags.values():
+                    #print "[BAG", bag.filename,"]" ,"Writing", condition_value, "from", condition_name
+                    bag.write(condition_name, condition_data)
