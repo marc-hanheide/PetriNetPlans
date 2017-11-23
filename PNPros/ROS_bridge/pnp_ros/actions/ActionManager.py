@@ -57,6 +57,8 @@ class ActionManager():
                 result = PNPResult()
                 result.result = 'OK'
                 goalhandler.set_succeeded(result, 'OK')
+        else:
+            rospy.logwarn("action " + action_name + " not implemented")
 
     def interrupt_action(self, goalhandler):
         ''' Action interrupted before it finished the execution '''

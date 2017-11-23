@@ -20,6 +20,7 @@ class say(AbstractAction):
         # The goal is reached when we have finished saying what we actually want to say
         current_goal_cond = "CurrentGoal_" + cls.__name__ + "_" + "_".join(params)
         if condition_eval_sp(current_goal_cond).truth_value:
+            # check that the elapsed time is enough
             starting_time = condition_value_sp("GoalStartingTime").value
             elapsed_time = rospy.Time.now() - rospy.Time.from_sec(float(starting_time))
             if elapsed_time.to_sec() > 4:

@@ -20,4 +20,4 @@ class CurrentGoal(AbstractTopicCondition):
             return node == current_goal
         else:
             rospy.logwarn("CurrentGoal condition value not yet initialized")
-            return True
+            return False

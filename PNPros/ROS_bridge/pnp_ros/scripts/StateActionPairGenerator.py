@@ -1,8 +1,9 @@
 import os
 import rospy
+from AbstractTopicCondition import ConditionListener
 from pnp_msgs.srv import PNPStartStateActionSaver, PNPStartStateActionSaverResponse,\
                          PNPStopStateActionSaver, PNPStopStateActionSaverResponse
-from AbstractTopicCondition import ConditionListener
+# TODO have a service message for allof them
 
 class StateActionPairGenerator(ConditionListener):
 
@@ -15,23 +16,28 @@ class StateActionPairGenerator(ConditionListener):
         self._saving_bags = {}
 
         # Initialize the state action saver services
-        self._start_sa_service_provider = rospy.Service(
-            "start_state_action_saver",
-            PNPStartStateActionSaver,
-            self._start_state_action_saver_cb
-        )
-        self._stop_sa_service_provider = rospy.Service(
-            "stop_state_action_saver",
-            PNPStopStateActionSaver,
-            self._stop_state_action_saver_cb
-        )
+        self._start_sa_service_provider = rospy.Service("start_state_action_saver",
+            PNPStartStateActionSaver, self._start_state_action_saver_cb)
+        self._stop_sa_service_provider = rospy.Service("stop_state_action_saver",
+            PNPStopStateActionSaver, self._stop_state_action_saver_cb)
+        self._check_running_service_provider = rospy.Service("running_state_action_saver",
+            PNPStartStateActionSaver, self._check_running_cb)
 
         self._condition_manager.register_condition_listener(self)
 
-    def _start_state_action_saver_cb(self, req):
-        bag_name = req.bag_name
+    def _check_running_cb(self, req):
+        goal = req.goal
 
-        if not bag_name in self._saving_bags.keys():
+        if goal in self._saving_bags.keys():
+            return PNPStartStateActionSaverResponse(1)
+        else:
+            return PNPStartStateActionSaverResponse(0)
+
+    def _start_state_action_saver_cb(self, req):
+        goal = req.goal
+
+        if not goal in self._saving_bags.keys():
+            bag_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".txt"
             # create new bag
             filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),\
                     "../demonstrations", bag_name)
@@ -39,29 +45,31 @@ class StateActionPairGenerator(ConditionListener):
 
             # insert bag in dict
             self._saving_bags.update({
-                bag_name : bag
+                goal : bag
             })
 
-            return PNPStartStateActionSaverResponse(True)
+            rospy.loginfo("Started recording demonstration in " + filepath)
+
+            return PNPStartStateActionSaverResponse(1)
         else:
-            rospy.logwarn("Saver in bag " + bag_name + " already running")
-            return PNPStartStateActionSaverResponse(False)
+            rospy.logwarn("Saver for " + goal + " already running")
+            return PNPStartStateActionSaverResponse(0)
 
     def _stop_state_action_saver_cb(self, req):
-        bag_name = req.bag_name
+        goal = req.goal
 
-        if bag_name in self._saving_bags.keys():
+        if goal in self._saving_bags.keys():
             # close the bag
-            self._saving_bags[bag_name].close()
+            self._saving_bags[goal].close()
 
             # remove the bag from the dict
-            del self._saving_bags[bag_name]
+            del self._saving_bags[goal]
 
-            rospy.loginfo("Closed bag " + bag_name)
-            return PNPStopStateActionSaverResponse(True)
+            rospy.loginfo("Closed bag " + goal)
+            return PNPStopStateActionSaverResponse(1)
         else:
-            rospy.logwarn("No running saver in bag " + bag_name + " found")
-            return PNPStopStateActionSaverResponse(False)
+            rospy.logwarn("No running saver in bag " + goal + " found")
+            return PNPStopStateActionSaverResponse(0)
 
     def receive_update(self, condition_instance):
         condition_name = condition_instance.get_name()
@@ -91,7 +99,7 @@ class StateActionPairGenerator(ConditionListener):
         if len(executed_actions):
             self._executed_actions_history.append(executed_actions)
         else:
-            self._executed_actions_history.append(["NO_ACTION"])
+            self._executed_actions_history.append([])
 
         assert(len(self._conditions_history)==len(self._executed_actions_history))
 

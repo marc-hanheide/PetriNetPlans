@@ -125,17 +125,17 @@ void publish_activePlaces(PnpExecuter<PnpPlan> *executor, ros::Publisher &curren
 int main(int argc, char** argv) 
 {
 	ros::init(argc,argv,"pnp_ros");
-	
+
 	// Needed by actionclient.
 	boost::thread spin_thread(&spinThread);
-		
+
 	ros::NodeHandle n, np("~");
 
     robot_name = "NONAME";
 	if (!n.getParam("robot_name",robot_name))
 		n.getParam("tf_prefix", robot_name);
 
-	
+
     ros::Subscriber planToExecSub = n.subscribe(TOPIC_PLANTOEXEC, 1, planToExecuteCallback);
 	
 	ExternalConditionChecker* conditionChecker;
