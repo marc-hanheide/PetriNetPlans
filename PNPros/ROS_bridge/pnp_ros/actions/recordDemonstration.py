@@ -6,7 +6,6 @@ from pnp_msgs.srv import PNPStartStateActionSaver, PNPStopStateActionSaver, PNPC
 
 class recordDemonstration(AbstractAction):
 
-    _demonstration_filename = None
 
     def _start_action(self):
         if len(self.params) > 0 and self.params[0] != "":
@@ -32,9 +31,11 @@ class recordDemonstration(AbstractAction):
 
         # call the starting service
         starting_sp = rospy.ServiceProxy("start_state_action_saver", PNPStartStateActionSaver)
-
         self._goal_str = goal_str
         response = starting_sp(self._goal_str).succeeded
+
+        self._demonstration_filename = None
+
 
     def _stop_action(self):
         # call the stopping service
