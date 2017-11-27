@@ -68,8 +68,8 @@ class recordDemonstrationAndExecute(AbstractAction):
         ''' Check that the record action and the recorded action have reached the goal
             (record action reaches the goal when the recorder action reaches its goal...) '''
 
-        goal_action = "recordDemonstration"
-        goal_params = params
+        goal_action = params[0]
+        goal_params = params[1:]
 
         # Call the ActionManager static method
         return ActionManager.is_goal_reached(goal_action, goal_params)
