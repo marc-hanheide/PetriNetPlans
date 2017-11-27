@@ -6,7 +6,6 @@ from pnp_msgs.srv import PNPStartStateActionSaver, PNPStopStateActionSaver, PNPC
 
 class recordDemonstration(AbstractAction):
 
-
     def _start_action(self):
         if len(self.params) > 0 and self.params[0] != "":
             # record for the requested action
