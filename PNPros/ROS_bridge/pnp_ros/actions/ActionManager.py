@@ -108,7 +108,8 @@ class ActionManager():
         try:
             action_class = getattr(import_module(action_name), action_name)
         except (ImportError, AttributeError):
-            rospy.logwarn("action " + action_name + " not implemented")
+            #rospy.logwarn("action " + action_name + " not implemented")
+            pass
         else:
             if issubclass(action_class, AbstractAction) and not inspect.isabstract(action_class):
                 return action_class
