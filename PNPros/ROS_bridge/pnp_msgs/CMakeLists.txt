@@ -49,6 +49,7 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    Action.msg
    ActionFinished.msg
+   ActionFailure.msg
  )
 
 ## Generate services in the 'srv' folder

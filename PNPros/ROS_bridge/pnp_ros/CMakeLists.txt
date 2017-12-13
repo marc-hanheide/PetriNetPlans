@@ -162,6 +162,7 @@ target_link_libraries(pnp_node
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
   scripts/PNPActionServer.py
+  scripts/historyProvider.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

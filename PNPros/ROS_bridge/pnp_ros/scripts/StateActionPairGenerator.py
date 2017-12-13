@@ -68,7 +68,7 @@ class StateActionPairGenerator(ConditionListener):
         if not goal in self._saving_bags.keys():
             # create new bag
             file_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".bag"
-            folder = '%s/catkin_ws/data/bags'  % os.path.expanduser("~")
+            folder = '%s/catkin_ws/data/bagfiles'  % os.path.expanduser("~")
             filepath = os.path.join(folder, file_name)
             bag = rosbag.Bag(filepath, "w")
 

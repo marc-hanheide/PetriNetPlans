@@ -19,6 +19,13 @@
     respawn="false" output="screen">
     <!-- <param name="name" value="value" /> -->
   </node>
-
+	
+  <node
+    name="history_provider"
+    pkg="pnp_ros"
+    type="historyProvider.py"
+    respawn="false"
+    output="screen">
+  </node>
 
 </launch>
