@@ -19,9 +19,10 @@ class detectSituation(AbstractAction):
 
         if model is not None:
             # Take the corresponding recovery model
+            pass
         else:
             # Collect the samples
-            dataPath = '%s/catkin_ws/data/detect_trajectories/' % expanduser("~")
+            dataPath = '%s/catkin_ws/data/detect_trajectories/' % os.path.expanduser("~")
             files = os.listdir(dataPath)
             det_trajectories = []
             for filename in files:
@@ -32,8 +33,6 @@ class detectSituation(AbstractAction):
             # save the current trajectory
             filename = os.path.join(dataPath, str(rospy.Time.now().to_nsec()) + ".traj")
             pickle.dump(filename, scan_window.data)
-
-            # take negative trajectories
 
 
 

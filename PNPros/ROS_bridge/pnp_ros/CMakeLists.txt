@@ -163,6 +163,7 @@ target_link_libraries(pnp_node
 install(PROGRAMS
   scripts/PNPActionServer.py
   scripts/historyProvider.py
+  scripts/failureDetector.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

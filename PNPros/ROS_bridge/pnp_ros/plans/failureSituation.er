@@ -1,1 +1,3 @@
-*if* FailureSituation *during* goto *do* detectSituation; restart_plan
+*if* FailureSituation_human *during* goto *do* saveTrajectory; restart_action
+*if* FailureSituation_autodetected *during* goto *do* recoveryProcedure; restart_action
+*if* FailureSituation_save *during* goto *do* saveTrajectory_neg; restart_action

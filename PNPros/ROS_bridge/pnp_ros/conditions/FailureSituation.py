@@ -1,3 +1,4 @@
+import rospy
 
 from AbstractTopicCondition import AbstractTopicCondition
 from pnp_msgs.msg import ActionFailure
@@ -9,12 +10,18 @@ class FailureSituation(AbstractTopicCondition):
     _topic_type = ActionFailure
 
     def _get_value_from_data(self, data):
-        if data.truth_value:
-            return "true"
-        else:
-            return "false"
+        return data.cause
 
     def evaluate(self, params):
-        if self.last_value is None or self.last_value == "false":
-            return False
-        return True
+        cause = None
+        if len(params) > 0:
+            cause = str(params[0])
+
+        if self.last_data is not None:
+            if (rospy.Time.now().to_sec() - self.last_data.stamp.to_sec()) < 2:
+                if cause is not None:
+                    return cause == self.last_value
+                else:
+                    return True
+
+        return False
