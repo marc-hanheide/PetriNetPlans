@@ -28,7 +28,7 @@
     output="screen">
   </node>
 
-  <node
+<node
     name="failure_detector"
     pkg="pnp_ros"
     type="failureDetector.py"
