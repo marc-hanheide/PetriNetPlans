@@ -316,7 +316,7 @@
   <graphics>
     <position x="200" y="500" />    <size width="8" height="32" />  </graphics>
   <name>
-    <value>[CurrentNode_WayPoint1, ClosestNode_WayPoint1]</value>
+    <value>[CurrentNode_WayPoint1]</value>
     <graphics>
       <offset x="0" y="-20" />
     </graphics>

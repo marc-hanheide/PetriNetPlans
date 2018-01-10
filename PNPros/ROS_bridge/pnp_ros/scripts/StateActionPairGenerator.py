@@ -4,7 +4,6 @@ import multiprocessing
 from AbstractTopicCondition import ConditionListener
 from pnp_msgs.srv import PNPStartStateActionSaver, PNPStartStateActionSaverResponse,\
                          PNPStopStateActionSaver, PNPStopStateActionSaverResponse
-# TODO have a service message for allof them
 
 class StateActionPairGenerator(ConditionListener):
 
@@ -13,9 +12,11 @@ class StateActionPairGenerator(ConditionListener):
         self._condition_manager = condition_manager
 
         self._actions_history = {}
-        self._conditions_history = {}
+        self._states_history = {}
         self._saving_files = {}
         self._saving_bags = {}
+        self._request_info = {}
+        self._files_lock = multiprocessing.Lock()
         self._bags_lock = multiprocessing.Lock()
 
         # Initialize the state action saver services
@@ -24,27 +25,33 @@ class StateActionPairGenerator(ConditionListener):
         self._stop_sa_service_provider = rospy.Service("stop_state_action_saver",
             PNPStopStateActionSaver, self._stop_state_action_saver_cb)
         self._check_running_service_provider = rospy.Service("running_state_action_saver",
-            PNPStartStateActionSaver, self._check_running_cb)
+            PNPStopStateActionSaver, self._check_running_cb)
 
         self._condition_manager.register_condition_listener(self)
 
     def _check_running_cb(self, req):
-        goal = req.goal
+        goal_goal = req.goal
 
-        if goal in self._saving_files.keys():
-            return PNPStartStateActionSaverResponse(1)
+        if goal_goal in self._saving_files.keys():
+            return PNPStopStateActionSaverResponse(1)
         else:
-            return PNPStartStateActionSaverResponse(0)
+            return PNPStopStateActionSaverResponse(0)
 
     def _start_state_action_saver_cb(self, req):
         goal = req.goal
+        filepath = req.filepath
+        save_bag = req.save_bag
+        state_conditions = req.state_conditions
+        action_conditions = req.action_conditions
+        print len(state_conditions), action_conditions
 
         # Start saving the action-state pairs
         if not goal in self._saving_files.keys():
-            # create new file
-            file_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".txt"
-            filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),\
-                    "../demonstrations", file_name)
+            if filepath == "":
+                # create new file
+                file_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".txt"
+                filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),\
+                        "../demonstrations", file_name)
             file = open(filepath, "w")
 
             # insert file in dict
@@ -54,8 +61,14 @@ class StateActionPairGenerator(ConditionListener):
             self._actions_history.update({
                 goal : []
             })
-            self._conditions_history.update({
+            self._states_history.update({
                 goal : []
+            })
+            self._request_info.update({
+                goal : {
+                    "state_conditions": state_conditions,
+                    "action_conditions": action_conditions
+                }
             })
 
             rospy.loginfo("Started recording demonstration in " + filepath)
@@ -65,23 +78,24 @@ class StateActionPairGenerator(ConditionListener):
             return PNPStartStateActionSaverResponse(0)
 
         # Start saving in the bag
-        if not goal in self._saving_bags.keys():
-            # create new bag
-            file_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".bag"
-            folder = '%s/catkin_ws/data/bagfiles'  % os.path.expanduser("~")
-            filepath = os.path.join(folder, file_name)
-            bag = rosbag.Bag(filepath, "w")
+        if save_bag:
+            if not goal in self._saving_bags.keys():
+                # create new bag
+                file_name = goal + "_" + str(rospy.Time.now().to_nsec()) + ".bag"
+                folder = '%s/catkin_ws/data/bagfiles'  % os.path.expanduser("~")
+                filepath = os.path.join(folder, file_name)
+                bag = rosbag.Bag(filepath, "w")
 
-            # insert file in dict
-            with self._bags_lock:
-                self._saving_bags.update({
-                    goal : bag
-                })
+                # insert file in dict
+                with self._bags_lock:
+                    self._saving_bags.update({
+                        goal : bag
+                    })
 
-            rospy.loginfo("Started dumping demonstration in bag " + filepath)
-        else:
-            rospy.logwarn("Bag saver for " + goal + " already running")
-            return PNPStartStateActionSaverResponse(0)
+                rospy.loginfo("Started dumping demonstration in bag " + filepath)
+            else:
+                rospy.logwarn("Bag saver for " + goal + " already running")
+                return PNPStartStateActionSaverResponse(0)
 
         return PNPStartStateActionSaverResponse(1)
 
@@ -92,23 +106,31 @@ class StateActionPairGenerator(ConditionListener):
         if goal in self._saving_files.keys():
             # Save state actions in all open files
             file = self._saving_files[goal]
-            for timestep in range(len(self._conditions_history[goal])):
-                for state_el in self._conditions_history[goal][timestep]:
-                    file.write(state_el + " ")
+            for timestep in range(len(self._states_history[goal])):
+                if len(self._states_history[goal][timestep]) < len(self._request_info[goal]["state_conditions"]):
+                    continue
+                for i, state_el in enumerate(self._states_history[goal][timestep]):
+                    if i>0:
+                        file.write("  ")
+                    file.write(state_el)
                 file.write("\t")
-                for ex_action in self._actions_history[goal][timestep]:
-                    file.write(ex_action + " ")
+                for i, ex_action in enumerate(self._actions_history[goal][timestep]):
+                    if i>0:
+                        file.write("  ")
+                    file.write(ex_action)
                 file.write("\n")
 
             # close the file
-            self._saving_files[goal].close()
+            with self._files_lock:
+                self._saving_files[goal].close()
 
-            # remove the file from the dict
-            del self._saving_files[goal]
-            del self._conditions_history[goal]
-            del self._actions_history[goal]
+                # remove the file from the dict
+                del self._saving_files[goal]
+                del self._states_history[goal]
+                del self._actions_history[goal]
+                del self._request_info[goal]
 
-            rospy.loginfo("Closed file " + goal)
+                rospy.loginfo("Closed file " + goal)
         else:
             rospy.logwarn("No running saver in file " + goal + " found")
             return PNPStopStateActionSaverResponse(0)
@@ -121,7 +143,6 @@ class StateActionPairGenerator(ConditionListener):
                 rospy.loginfo("Closed bag for " + goal)
         else:
             rospy.logwarn("No running bag saver for " + goal + " found")
-            return PNPStopStateActionSaverResponse(0)
 
         return PNPStopStateActionSaverResponse(1)
 
@@ -129,37 +150,61 @@ class StateActionPairGenerator(ConditionListener):
         condition_name = condition_instance.get_name()
         condition_value = condition_instance.get_value()
 
-        # Get the current conditions
-        current_state = self._condition_manager.get_conditions_dump()
-
-        # Get executable actions
-        action_list = self._action_manager.get_actions()
-
-        # Check the actions that reached the goal after this change
-        action_candidates = []
-        if condition_value.lower() != "none":
-            for action in action_list:
-                #print action, "goal reached?"
-                if self._action_manager.is_goal_reached(action, condition_value.split("_")):
-                    action_candidates.append(action + "_".join(["", condition_value]))
-
         # Save in state-action pairs file
-        for goal_name in self._saving_files.keys():
-            # Save the condition
-            self._conditions_history[goal_name].append(current_state)
-            # spread the action to the previous timesteps without actions
-            executed_actions = action_candidates[:]
-            for timestep in range(len(self._actions_history[goal_name])-1, -1, -1):
-                if len(self._actions_history[goal_name][timestep]) == 0:
-                    self._actions_history[goal_name][timestep] = executed_actions
-                else:
-                    break
+        with self._files_lock:
+            for goal_id in self._saving_files.keys():
+                # Get the current condition state
+                #current_state = self._condition_manager.get_conditions_dump()
 
-            # Add empty container of actions for the current step
-            self._actions_history[goal_name].append([])
+                # take the requested state conditions
+                state_conds = self._request_info[goal_id]["state_conditions"]
+                # take the requested action conditions
+                action_conds = self._request_info[goal_id]["action_conditions"]
 
-            # sometimes this assert is false, maybe caused by parallel access at the class variables
-            #assert(len(self._conditions_history[goal_name])==len(self._actions_history[goal_name]))
+                action_candidates = []
+                # consider this condition if is in the list or if the list is empty (all the conditions)
+                if condition_name in state_conds or len(state_conds) == 0:
+                    # if the condition was updated in the last timestep, here we create a new timestep
+                    if len(self._states_history[goal_id]) == 0 or condition_name in [cond.split("_")[0] for cond in self._states_history[goal_id][-1]]:
+                        # Save the condition
+                        self._states_history[goal_id].append([condition_name + "_".join(["", condition_value])])
+                    else:
+                        # Save the condition
+                        self._states_history[goal_id][-1].append(condition_name + "_".join(["", condition_value]))
+                        # ...and propagate in the previous states if not present
+                        for timestep in range(len(self._states_history[goal_id])-2, -1, -1):
+                            if not condition_name in [cond.split("_")[0] for cond in self._states_history[goal_id][timestep]]:
+                                self._states_history[goal_id][timestep].append(condition_name + "_".join(["", condition_value]))
+                            else:
+                                break
+
+                    # if we don't specify which conditions represents our action we try to infer them when the state changes
+                    if len(action_conds) == 0:
+                        # Get executable actions
+                        action_list = self._action_manager.get_actions()
+
+                        # Check the actions that reached the goal after this change
+                        if condition_value.lower() != "none":
+                            for action in action_list:
+                                #print action, "goal reached?"
+                                if self._action_manager.is_goal_reached(action, condition_value.split("_")):
+                                    action_candidates.append(action + "_".join(["", condition_value]))
+
+                # TODO make it working with multiple action conditions
+                # save the condition in the action list
+                if condition_name in action_conds:
+                    action_candidates.append(condition_name + "_".join(["", condition_value]))
+
+                # propagate the action to the previous timesteps without actions
+                executed_actions = action_candidates[:]
+                for timestep in range(len(self._actions_history[goal_id])-1, -1, -1):
+                    if len(self._actions_history[goal_id][timestep]) == 0:
+                        self._actions_history[goal_id][timestep] = executed_actions
+                    else:
+                        break
+
+                # Add empty container of actions for the current step
+                self._actions_history[goal_id].append([])
 
         # Save in the bag
         topic_message = condition_instance.get_data() # the actual topic message

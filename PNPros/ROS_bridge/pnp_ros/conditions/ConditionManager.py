@@ -68,3 +68,10 @@ class ConditionManager():
             condition_dump.append(cond_name + "_" + str(cond_instance.get_value()))
 
         return condition_dump
+
+    #def get_condition_value(self, cond_name):
+    #    cond_value = None
+    #    if cond_name in self._condition_instances.keys():
+    #        cond_value = str(cond_instance.get_value())
+
+    #    return cond_value

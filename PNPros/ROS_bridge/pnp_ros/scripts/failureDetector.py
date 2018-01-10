@@ -50,6 +50,7 @@ def load_model(data):
         #print model_params.shape, model_params
         model[:] = model_params # Load the parameters
         model.update_model(True) # Call the algebra only once
+        print "failureDetector"
         print model
         #model.optimize()
     finally:
@@ -110,6 +111,7 @@ if __name__ == "__main__":
 
             # acquire the lock on the model
             model_lock.acquire()
+            #print "predicting"
             try:
                 (Yp, var) = model.predict(Xtest)
             except:
@@ -135,6 +137,7 @@ if __name__ == "__main__":
                     msg.cause = "autodetected"
                     signal_pub.publish(msg)
                     trace_pub.publish(current_scan_window_data)
+                    print " Sent failure_signal"
             finally:
                 model_lock.release()
 

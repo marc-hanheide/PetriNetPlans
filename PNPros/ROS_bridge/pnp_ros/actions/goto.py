@@ -5,6 +5,7 @@ from topological_navigation.msg import GotoNodeActionGoal, GotoNodeAction
 from actionlib_msgs.msg import GoalID
 from AbstractAction import AbstractAction
 from pnp_msgs.srv import PNPCondition
+from geometry_msgs.msg import Twist
 
 
 class goto(AbstractAction):
@@ -24,11 +25,29 @@ class goto(AbstractAction):
         self.nav_ac.send_goal(self.nav_goal.goal)
         rospy.loginfo("Waiting for result...")
 
+        # cmdvel Publisher
+        self._cmdVelPub = rospy.Publisher("cmd_vel", Twist, latch=True, queue_size=10)
+
+        print "START ACTION GOTO"
+
+
     def _stop_action(self):
+
         cancel_goal = GoalID()
         cancel_goal.id = self.nav_goal.goal_id.id
         pub = rospy.Publisher('/topological_navigation/cancel', GoalID, queue_size=10)
         pub.publish(cancel_goal)
+
+        # let's be sure that the robot stops
+        #cancel_goal.id = ""
+        #pub = rospy.Publisher('/move_base/cancel', GoalID, queue_size=10)
+        #pub.publish(cancel_goal)
+        cmdVel = Twist()
+        cmdVel.linear.x = .0
+        cmdVel.angular.z = .0
+        self._cmdVelPub.publish(cmdVel)
+
+        print "STOP ACTION GOTO"
 
     @classmethod
     def is_goal_reached(cls, params):
@@ -38,7 +57,8 @@ class goto(AbstractAction):
         service_proxy = rospy.ServiceProxy("/PNPConditionEval", PNPCondition)
 
         condition = "CurrentNode_" + goal_node
-        return service_proxy(condition).truth_value
+        reached = service_proxy(condition).truth_value
+        return reached
 
         #if self.nav_ac.get_result():
         #    # print the result of navigation

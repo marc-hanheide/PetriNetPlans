@@ -38,7 +38,7 @@ class AbstractAction():
         self._start_action()
 
         # rate 0.5hz
-        r = rospy.Rate(0.5)
+        r = rospy.Rate(2)
 
         # wait until the action is done
         while not self._is_action_done():

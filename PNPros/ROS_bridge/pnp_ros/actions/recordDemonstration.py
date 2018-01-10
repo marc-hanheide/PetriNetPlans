@@ -31,7 +31,8 @@ class recordDemonstration(AbstractAction):
         # call the starting service
         starting_sp = rospy.ServiceProxy("start_state_action_saver", PNPStartStateActionSaver)
         self._goal_str = goal_str
-        response = starting_sp(self._goal_str).succeeded
+
+        response = starting_sp(self._goal_str, "", [], [], True).succeeded
 
         self._demonstration_filename = None
 
@@ -40,7 +41,6 @@ class recordDemonstration(AbstractAction):
         # call the stopping service
         if self._goal_str:
             stopping_sp = rospy.ServiceProxy("stop_state_action_saver", PNPStopStateActionSaver)
-
             response = stopping_sp(self._goal_str).succeeded
 
     @classmethod
@@ -63,7 +63,7 @@ class recordDemonstration(AbstractAction):
 
         if goal_action:
             # check that there is a saver running for this goal
-            check_sp = rospy.ServiceProxy("running_state_action_saver", PNPStartStateActionSaver)
+            check_sp = rospy.ServiceProxy("running_state_action_saver", PNPStopStateActionSaver)
             running = check_sp(goal_action + "_".join([""] + goal_params))
 
             if running.succeeded:

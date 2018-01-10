@@ -11,6 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../conditions'))
 
 from ActionManager import ActionManager
 from ConditionManager import ConditionManager
+from RecoveryActionServer import RecoveryActionServer
 from StateActionPairGenerator import StateActionPairGenerator
 from pnp_msgs.msg import PNPActionFeedback, PNPResult, PNPAction
 from pnp_msgs.srv import PNPCondition, PNPConditionResponse, PNPConditionValue, PNPConditionValueResponse
@@ -89,6 +90,7 @@ if __name__ == '__main__':
     PNPActionServer("PNP")
 
     StateActionPairGenerator(actionManager, conditionManager)
+    RecoveryActionServer()
 
     # Service which returns truth value of condition
     rospy.Service('PNPConditionEval',

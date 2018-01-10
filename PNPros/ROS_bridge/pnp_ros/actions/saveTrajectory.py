@@ -58,6 +58,7 @@ class saveTrajectory(AbstractAction):
 
         # optimize model
         model.optimize()
+        print "saveTrajectory"
         print model
 
         ## save model

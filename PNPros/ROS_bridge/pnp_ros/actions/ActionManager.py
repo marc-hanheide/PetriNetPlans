@@ -18,6 +18,7 @@ class ActionManager():
             action_class = ActionManager._find_action_implementation(name)
             if action_class:
                 self._implemented_actions.append(action_class)
+                rospy.loginfo("Found implemented class " + name)
 
         # Start interrupted_goal topic
         self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)
@@ -105,6 +106,7 @@ class ActionManager():
 
     @staticmethod
     def _find_action_implementation(action_name):
+        action_class = getattr(import_module(action_name), action_name)
         try:
             action_class = getattr(import_module(action_name), action_name)
         except (ImportError, AttributeError):
