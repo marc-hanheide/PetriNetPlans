@@ -25,29 +25,32 @@ class recoverAction(AbstractAction):
         pub.publish(twist)
 
         # Ask for confirmation by human
-        window = tk.Tk()
-        self.confirmed = None
+        #window = tk.Tk()
+        #self.confirmed = None
 
-        def confirm_y():
-            self.confirmed = True
-            window.destroy()
+        #def confirm_y():
+        #    self.confirmed = True
+        #    window.destroy()
 
-        def confirm_n():
-            self.confirmed = False
-            window.destroy()
+        #def confirm_n():
+        #    self.confirmed = False
+        #    window.destroy()
 
-        def confirm_d():
-            window.destroy()
+        #def confirm_d():
+        #    window.destroy()
 
-        label = ttk.Label(window, text="Was it actually a dangerous situation?")
-        label.pack()
-        by = ttk.Button(window, text="Yes", command = confirm_y)
-        bn = ttk.Button(window, text="No", command = confirm_n)
-        bd = ttk.Button(window, text="Dunno", command = confirm_d)
-        by.pack()
-        bn.pack()
-        bd.pack()
-        window.mainloop()
+        #label = ttk.Label(window, text="Was it actually a dangerous situation?")
+        #label.pack()
+        #by = ttk.Button(window, text="Yes", command = confirm_y)
+        #bn = ttk.Button(window, text="No", command = confirm_n)
+        #bd = ttk.Button(window, text="Dunno", command = confirm_d)
+        #by.pack()
+        #bn.pack()
+        #bd.pack()
+        #window.mainloop()
+
+        # NOTE: always execute
+        self.confirmed = True
 
         print "confirmed: ", self.confirmed
 
