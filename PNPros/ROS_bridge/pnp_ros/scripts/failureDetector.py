@@ -17,13 +17,15 @@ current_scan_window = []
 current_scan_window_data = None
 model = None
 model_lock = threading.Lock()
+failure_confirmed = True
+last_failure_trace = None
 
 def receive_scan_history(data):
     global current_scan_window, current_scan_window_data
     current_scan_window_data = data
     current_scan_window = data.data[:]
 
-def load_model(data):
+def load_model(_):
     global model, model_lock
 
     folder = '%s/catkin_ws/data/GPmodels'  % os.path.expanduser("~")
@@ -57,6 +59,28 @@ def load_model(data):
         # release the lock
         model_lock.release()
 
+def  failure_confirmation(data):
+    global failure_confirmed, last_failure_trace
+    if data.cause == "falsepositive":
+        save_new_trajectory(type="negative", trace_data=last_failure_trace)
+        load_model("")
+
+    failure_confirmed = True
+
+def save_new_trajectory(type="positive", trace_data=None):
+    global current_scan_window_data
+
+    if trace_data is None:
+        trace_data = current_scan_window_data
+
+    folder = '%s/catkin_ws/data/detect_trajectories'  % os.path.expanduser("~")
+    if type == "negative":
+        filename = '%s/neg_%s.traj' % (folder, rospy.Time.now().to_nsec())
+    elif type == "positive":
+        filename = '%s/%s.traj' % (folder, rospy.Time.now().to_nsec())
+
+    pickle.dump(trace_data.data, open(filename, "wb"))
+    rospy.loginfo("Saving failed trajectory in %s" % filename)
 
 if __name__ == "__main__":
     #global current_scan_window
@@ -71,22 +95,30 @@ if __name__ == "__main__":
     rospy.Subscriber("scan_history", Float64MultiArray, receive_scan_history)
 
     # failure model updated
-    rospy.Subscriber("failure_model_updated", String, load_model)
+    #rospy.Subscriber("failure_model_updated", String, load_model)
+
+    # to hear back from the plan after the failure
+    rospy.Subscriber("failure_signal_confirmation", ActionFailure, failure_confirmation)
 
     # failure Publisher
     signal_pub = rospy.Publisher("failure_signal", ActionFailure, latch=True, queue_size=10)
 
     # failure trace Publisher
-    trace_pub = rospy.Publisher("failure_trace", Float64MultiArray, latch=True, queue_size=10)
+    #trace_pub = rospy.Publisher("failure_trace", Float64MultiArray, latch=True, queue_size=10)
 
     # GUI for human signaling
     window = tk.Tk()
 
     def human_signal_failure():
+        # save trajectory
+        save_new_trajectory(type="positive")
+        # publish the failure
         msg = ActionFailure()
         msg.stamp = rospy.Time.now()
         msg.cause = "human"
         signal_pub.publish(msg)
+        # update the model
+        load_model("")
 
     label = ttk.Label(window, text="Failure signaller")
     label.pack()
@@ -103,7 +135,7 @@ if __name__ == "__main__":
         if model is None:
             pass
             #rospy.loginfo('%s/detector_model.gp' % folder + " not found")
-        elif len(current_scan_window) > 0:
+        elif len(current_scan_window) > 0 and failure_confirmed:
             failure = False
 
             ## Make prediction
@@ -136,8 +168,14 @@ if __name__ == "__main__":
                     msg.stamp = rospy.Time.now()
                     msg.cause = "autodetected"
                     signal_pub.publish(msg)
-                    trace_pub.publish(current_scan_window_data)
+                    last_failure_trace = current_scan_window_data
+                    #trace_pub.publish(current_scan_window_data)
                     print " Sent failure_signal"
+                    failure_confirmed = False
+                    # here we notify the failure, but we want a confirmation and
+                    # we want to hear back in case it was a false positive....
+
+
             finally:
                 model_lock.release()
 

@@ -1,3 +1,4 @@
+# NOTE deprecated, the trajectory saving is managed by failureDetector
 import os
 import rospy
 import pickle

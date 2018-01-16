@@ -25,6 +25,8 @@ class recoverAction(AbstractAction):
         pub.publish(twist)
 
         # Ask for confirmation by human
+        conf_pub = rospy.Publisher("failure_signal_confirmation", ActionFailure, latch=True, queue_size=10)
+
         window = tk.Tk()
         self.confirmed = None
 
@@ -55,21 +57,37 @@ class recoverAction(AbstractAction):
         print "confirmed: ", self.confirmed
 
         if self.confirmed == True:
+            # send failure confirmation
+            msg = ActionFailure()
+            msg.stamp = rospy.Time.now()
+            msg.cause = "positive"
+            conf_pub.publish(msg)
+            # start recovery service
             start_sp = rospy.ServiceProxy("start_recovery_execution", Empty)
             start_sp()
             self.params[len(self.params):] = [rospy.Time.now().to_sec()]
             self.params[len(self.params):] = ["recovering"]
         elif self.confirmed == False:
-            ## signal wrong failure detection
-            pub = rospy.Publisher("failure_signal", ActionFailure, queue_size=10, latch=True)
+            # send failure confirmation
             msg = ActionFailure()
             msg.stamp = rospy.Time.now()
             msg.cause = "falsepositive"
-            pub.publish(msg)
+            conf_pub.publish(msg)
+            ### NOTE do not makes sense anymore to send this
+            #pub = rospy.Publisher("failure_signal", ActionFailure, queue_size=10, latch=True)
+            #msg = ActionFailure()
+            #msg.stamp = rospy.Time.now()
+            #msg.cause = "falsepositive"
+            #pub.publish(msg)
 
             # finished action
             self.params[len(self.params):] = ["done"]
         else:
+            # send failure confirmation
+            msg = ActionFailure()
+            msg.stamp = rospy.Time.now()
+            msg.cause = "dunno"
+            conf_pub.publish(msg)
             # finished action
             self.params[len(self.params):] = ["done"]
 
