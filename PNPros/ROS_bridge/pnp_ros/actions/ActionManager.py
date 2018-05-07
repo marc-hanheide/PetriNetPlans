@@ -106,7 +106,7 @@ class ActionManager():
 
     @staticmethod
     def _find_action_implementation(action_name):
-        action_class = getattr(import_module(action_name), action_name)
+        # action_class = getattr(import_module(action_name), action_name)
         try:
             action_class = getattr(import_module(action_name), action_name)
         except (ImportError, AttributeError):

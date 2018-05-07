@@ -97,6 +97,12 @@ class StateActionPairGenerator(ConditionListener):
                 rospy.logwarn("Bag saver for " + goal + " already running")
                 return PNPStartStateActionSaverResponse(0)
 
+
+        # Get the current condition state
+        current_state = self._condition_manager._condition_instances.values()
+        for condition_instance in current_state:
+            if "get_name" in dir(condition_instance): # only topic conditions have this
+                self.receive_update(condition_instance)
         return PNPStartStateActionSaverResponse(1)
 
     def _stop_state_action_saver_cb(self, req):
@@ -107,7 +113,8 @@ class StateActionPairGenerator(ConditionListener):
             # Save state actions in all open files
             file = self._saving_files[goal]
             for timestep in range(len(self._states_history[goal])):
-                if len(self._states_history[goal][timestep]) < len(self._request_info[goal]["state_conditions"]):
+                if len(self._states_history[goal][timestep]) < len(self._request_info[goal]["state_conditions"]) or \
+			len(self._actions_history[goal][timestep]) < len(self._request_info[goal]["action_conditions"]):
                     continue
                 for i, state_el in enumerate(self._states_history[goal][timestep]):
                     if i>0:
@@ -154,7 +161,7 @@ class StateActionPairGenerator(ConditionListener):
         with self._files_lock:
             for goal_id in self._saving_files.keys():
                 # Get the current condition state
-                #current_state = self._condition_manager.get_conditions_dump()
+                current_state = self._condition_manager.get_conditions_dump()
 
                 # take the requested state conditions
                 state_conds = self._request_info[goal_id]["state_conditions"]
@@ -168,6 +175,9 @@ class StateActionPairGenerator(ConditionListener):
                     if len(self._states_history[goal_id]) == 0 or condition_name in [cond.split("_")[0] for cond in self._states_history[goal_id][-1]]:
                         # Save the condition
                         self._states_history[goal_id].append([condition_name + "_".join(["", condition_value])])
+
+                        # Add empty container of actions for the current step
+                        self._actions_history[goal_id].append([])
                     else:
                         # Save the condition
                         self._states_history[goal_id][-1].append(condition_name + "_".join(["", condition_value]))
@@ -195,21 +205,30 @@ class StateActionPairGenerator(ConditionListener):
                 if condition_name in action_conds:
                     action_candidates.append(condition_name + "_".join(["", condition_value]))
 
-                # propagate the action to the previous timesteps without actions
+                # insert the action at the last state received, remove the previous timesteps without actions
                 executed_actions = action_candidates[:]
-                for timestep in range(len(self._actions_history[goal_id])-1, -1, -1):
-                    if len(self._actions_history[goal_id][timestep]) == 0:
-                        self._actions_history[goal_id][timestep] = executed_actions
-                    else:
-                        break
-
-                # Add empty container of actions for the current step
-                self._actions_history[goal_id].append([])
+                if len(self._actions_history[goal_id]) > 1 and len(self._actions_history[goal_id][-2]) == 0:
+                    self._actions_history[goal_id][-2] = executed_actions
+                    print self._states_history
+                    print self._actions_history
+                    for timestep in range(len(self._actions_history[goal_id])-3, -1, -1):
+                        if len(self._actions_history[goal_id][timestep]) == 0:
+                            del self._actions_history[goal_id][timestep]
+                            del self._states_history[goal_id][timestep]
+                        else:
+                            break
 
         # Save in the bag
-        topic_message = condition_instance.get_data() # the actual topic message
-        topic_name = condition_instance._topic_name # the type of topic message
-        with self._bags_lock:
-            for bag in self._saving_bags.values():
-                #print topic_name, topic_message
-                bag.write(topic_name, topic_message)
+        instances = []
+        instances.append(condition_instance)
+        instances.append(self._condition_manager._condition_instances["CurrentGoal"])
+        instances.append(self._condition_manager._condition_instances["CurrentNavigationGoal"])
+        instances.append(self._condition_manager._condition_instances["ClosestNode"])
+        instances.append(self._condition_manager._condition_instances["CurrentNode"])
+        for instance in instances:
+            topic_message = instance.get_data() # the actual topic message
+            topic_name = instance._topic_name # the type of topic message
+            with self._bags_lock:
+                for bag in self._saving_bags.values():
+                    #print topic_name, topic_message
+                    bag.write(topic_name, topic_message)

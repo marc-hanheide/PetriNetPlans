@@ -87,10 +87,8 @@ if __name__ == '__main__':
     conditionManager = ConditionManager()
     actionManager = ActionManager()
 
-    PNPActionServer("PNP")
 
-    StateActionPairGenerator(actionManager, conditionManager)
-    RecoveryActionServer()
+    #ßRecoveryActionServer()
 
     # Service which returns truth value of condition
     rospy.Service('PNPConditionEval',
@@ -102,4 +100,8 @@ if __name__ == '__main__':
                   PNPConditionValue,
                   handle_PNPConditionValue)
 
+    StateActionPairGenerator(actionManager, conditionManager)
+
+    PNPActionServer("PNP")
+    
     rospy.spin()
