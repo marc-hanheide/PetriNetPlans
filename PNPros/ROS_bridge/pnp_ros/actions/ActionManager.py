@@ -18,7 +18,7 @@ class ActionManager():
             action_class = ActionManager._find_action_implementation(name)
             if action_class:
                 self._implemented_actions.append(action_class)
-                rospy.loginfo("Found implemented class " + name)
+                rospy.loginfo("Found implemented action " + name)
 
         # Start interrupted_goal topic
         self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)

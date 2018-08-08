@@ -19,8 +19,8 @@
     respawn="false" output="screen">
     <!-- <param name="name" value="value" /> -->
   </node>
-	
-  <node
+
+  <!-- <node
     name="history_provider"
     pkg="pnp_ros"
     type="historyProvider.py"
@@ -34,6 +34,6 @@
     type="failureDetector.py"
     respawn="false"
     output="screen">
-  </node>
+  </node> -->
 
 </launch>
