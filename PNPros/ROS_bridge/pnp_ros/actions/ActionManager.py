@@ -1,7 +1,7 @@
 import os
-import glob
 import rospy
 import inspect
+import fnmatch
 from importlib import import_module
 from AbstractAction import AbstractAction
 from pnp_msgs.msg import PNPResult, PNPGoal
@@ -13,12 +13,16 @@ class ActionManager():
         self._implemented_actions = []
 
         # Find all the actions implemented
-        for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
-            name = os.path.splitext(os.path.basename(file))[0]
-            action_class = ActionManager._find_action_implementation(name)
+        directory = os.path.dirname(os.path.abspath(__file__))
+        for file in [os.path.join(dirpath, f)
+                    for dirpath, _, files in os.walk(directory, followlinks=True)
+                    for f in fnmatch.filter(files, '*.py')]:
+            module_name = os.path.splitext(os.path.basename(file))[0]
+            package_name = os.path.dirname(os.path.relpath(file, directory)).replace("/", ".")
+            action_class = ActionManager._find_action_implementation(package_name, module_name)
             if action_class:
                 self._implemented_actions.append(action_class)
-                rospy.loginfo("Found implemented action " + name)
+                rospy.loginfo("Found implemented action " + module_name)
 
         # Start interrupted_goal topic
         self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)
@@ -105,16 +109,24 @@ class ActionManager():
             return False
 
     @staticmethod
-    def _find_action_implementation(action_name):
+    def _find_action_implementation(package_name, module_name):
         # action_class = getattr(import_module(action_name), action_name)
         try:
-            action_class = getattr(import_module(action_name), action_name)
-        except (ImportError, AttributeError):
-            #rospy.logwarn("action " + action_name + " not implemented")
+            if package_name == "":
+                full_name = module_name
+            else:
+                full_name = package_name + "." + module_name
+            action_class = getattr(import_module(full_name, package=package_name), module_name)
+        except (ImportError, AttributeError) as e:
+            rospy.logwarn("action " + module_name + " not implemented")
             pass
         else:
-            if issubclass(action_class, AbstractAction) and not inspect.isabstract(action_class):
-                return action_class
-            else:
+            try:
+                if issubclass(action_class, AbstractAction) and not inspect.isabstract(action_class):
+                    return action_class
+                else:
+                    rospy.logwarn("class " + action_class.__name__ + " must inherit from AbstractAction")
+                    return None
+            except TypeError as e:
                 rospy.logwarn("class " + action_class.__name__ + " must inherit from AbstractAction")
-                return None
+                pass
