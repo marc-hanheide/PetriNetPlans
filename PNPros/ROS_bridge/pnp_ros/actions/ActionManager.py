@@ -12,6 +12,17 @@ class ActionManager():
         self._action_instances = {}
         self._implemented_actions = []
 
+        actions_found = self._search_actions()
+
+        for action_class in actions_found:
+            self._implemented_actions.append(action_class)
+
+        # Start interrupted_goal topic
+        self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)
+
+    @staticmethod
+    def _search_actions():
+        actions_found = []
         # Find all the actions implemented
         directory = os.path.dirname(os.path.abspath(__file__))
         for file in [os.path.join(dirpath, f)
@@ -21,11 +32,10 @@ class ActionManager():
             package_name = os.path.dirname(os.path.relpath(file, directory)).replace("/", ".")
             action_class = ActionManager._find_action_implementation(package_name, module_name)
             if action_class:
-                self._implemented_actions.append(action_class)
+                actions_found.append(action_class)
                 rospy.loginfo("Found implemented action " + module_name)
 
-        # Start interrupted_goal topic
-        self._interrupted_goal_publisher = rospy.Publisher('interrupted_goal', PNPGoal, queue_size=10, latch=True)
+        return actions_found
 
     def get_actions(self):
         return [action.__name__ for action in self._implemented_actions]
@@ -100,9 +110,14 @@ class ActionManager():
     @staticmethod
     def is_goal_reached(action_name, parameters):
         # search for an implementation of the action
-        action = ActionManager._find_action_implementation(action_name)
+        action = None
+        actions_found = ActionManager._search_actions()
+        for action_found in actions_found:
+            if action_found.__name__ == action_name:
+                action = action_found
+                break
 
-        if action:
+        if action is not None:
             # Instantiate the action
             return action.is_goal_reached(parameters)
         else:
