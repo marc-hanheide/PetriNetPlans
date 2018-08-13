@@ -134,6 +134,7 @@ class ActionManager():
             action_class = getattr(import_module(full_name, package=package_name), module_name)
         except (ImportError, AttributeError) as e:
             rospy.logwarn("action " + module_name + " not implemented")
+            print e
             pass
         else:
             try:
