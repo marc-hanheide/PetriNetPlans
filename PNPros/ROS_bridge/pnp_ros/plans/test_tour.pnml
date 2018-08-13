@@ -147,7 +147,7 @@
     <position x="860" y="500" />    <size width="32" height="32" />
   </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.exec</value>
+    <value>lindDescribeExhibitor_WayPoint2.exec</value>
     <graphics>
       <offset x="0" y="40" />
     </graphics>
@@ -223,7 +223,7 @@
     <position x="1340" y="500" />    <size width="32" height="32" />
   </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.exec</value>
+    <value>lindDescribeExhibitor_WayPoint3.exec</value>
     <graphics>
       <offset x="0" y="40" />
     </graphics>
@@ -368,7 +368,7 @@
   <graphics>
     <position x="800" y="500" />    <size width="8" height="32" />  </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.start</value>
+    <value>lindDescribeExhibitor_WayPoint2.start</value>
     <graphics>
       <offset x="0" y="-20" />
     </graphics>
@@ -386,7 +386,7 @@
   <graphics>
     <position x="920" y="500" />    <size width="8" height="32" />  </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.end</value>
+    <value>lindDescribeExhibitor_WayPoint2.end</value>
     <graphics>
       <offset x="0" y="-20" />
     </graphics>
@@ -440,7 +440,7 @@
   <graphics>
     <position x="1280" y="500" />    <size width="8" height="32" />  </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.start</value>
+    <value>lindDescribeExhibitor_WayPoint3.start</value>
     <graphics>
       <offset x="0" y="-20" />
     </graphics>
@@ -458,7 +458,7 @@
   <graphics>
     <position x="1400" y="500" />    <size width="8" height="32" />  </graphics>
   <name>
-    <value>lindDescribeExhibitor_WayPoint1.end</value>
+    <value>lindDescribeExhibitor_WayPoint3.end</value>
     <graphics>
       <offset x="0" y="-20" />
     </graphics>
