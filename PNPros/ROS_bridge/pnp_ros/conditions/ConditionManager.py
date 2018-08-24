@@ -1,8 +1,8 @@
 import os
-import glob
 import rospy
 import rosbag
 import inspect
+import fnmatch
 
 from AbstractCondition import AbstractCondition
 from AbstractTopicCondition import AbstractTopicCondition
@@ -14,24 +14,37 @@ class ConditionManager():
         self._condition_instances = {}
 
         # Initialize all the classes in current folder which implement AbstractCondition
-        for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
-            name = os.path.splitext(os.path.basename(file))[0]
+        directory = os.path.dirname(os.path.abspath(__file__))
+        for file in [os.path.join(dirpath, f)
+                    for dirpath, _, files in os.walk(directory, followlinks=True)
+                    for f in fnmatch.filter(files, '*.py')]:
+        # for file in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
+            module_name = os.path.splitext(os.path.basename(file))[0]
+            package_name = os.path.dirname(os.path.relpath(file, directory)).replace("/", ".")
             try:
-                condition_class = getattr(import_module(name), name)
-            except (ImportError, AttributeError):
+                if package_name == "":
+                    full_name = module_name
+                else:
+                    full_name = package_name + "." + module_name
+                condition_class = getattr(import_module(full_name, package=package_name), module_name)
+            except (ImportError, AttributeError) as e:
                 continue
             else:
-                if issubclass(condition_class, AbstractCondition) and not inspect.isabstract(condition_class):
-                    # Instanciate the condition
-                    condition_instance = condition_class()
+                try:
+                    if issubclass(condition_class, AbstractCondition) and not inspect.isabstract(condition_class):
+                        # Instanciate the condition
+                        condition_instance = condition_class()
 
-                    self._condition_instances.update({
-                        name : condition_instance
-                    })
+                        self._condition_instances.update({
+                            module_name : condition_instance
+                        })
 
-                    rospy.loginfo("Initialized condition " + name)
-                else:
-                    rospy.logwarn("Class " + name + " does not inherit from AbstractCondition")
+                        rospy.loginfo("Initialized condition " + module_name)
+                    else:
+                        rospy.logwarn("Class " + module_name + " does not inherit from AbstractCondition")
+                except TypeError as e:
+                    rospy.logwarn("class " + module_name + " must inherit from AbstractCondition")
+                    pass
 
     def evaluate(self, condition_name, params):
         try:
