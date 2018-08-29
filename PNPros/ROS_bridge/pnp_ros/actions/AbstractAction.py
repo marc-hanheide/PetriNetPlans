@@ -47,7 +47,7 @@ class AbstractAction():
                 break
 
             # send feedback
-            feedback.feedback = 'running ...'
+            feedback.feedback = 'running'
             self.goalhandler.publish_feedback(feedback)
 
             r.sleep()

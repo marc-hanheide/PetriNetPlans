@@ -51,14 +51,19 @@ class ActionManager():
                 action = action_impl
                 break
 
-        if action:
+        if action is not None:
             # accept the goal
             goalhandler.set_accepted()
 
+            # print "Is goal reached", action.is_goal_reached(goal.params.split("_"))
+            params_list = []
+            if goal.params != "":
+                params_list = goal.params.split("_")
+
             ## check that the action goal is not already reached
-            if not self.is_goal_reached(goal.name, goal.params.split("_")):
+            if not action.is_goal_reached(params_list):
                 # Instantiate the action
-                action_instance = action(goalhandler, goal.params.split("_"))
+                action_instance = action(goalhandler, params_list)
 
                 # add action instance to the dict
                 self._action_instances.update({
@@ -94,7 +99,7 @@ class ActionManager():
             del self._action_instances[goal.id]
 
     def end_action(self, goalhandler):
-        ''' Action ended its execution (this is called after the action is already finished)'''
+        ''' Action ended its execution (this is called after the action is already finished, why?)'''
         goal = goalhandler.get_goal()
         print "Ending " + goal.name + " " + goal.params
 
