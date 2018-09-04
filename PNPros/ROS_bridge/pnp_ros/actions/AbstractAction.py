@@ -1,8 +1,19 @@
+import os
+import sys
 import rospy
 import threading
 
 from abc import ABCMeta, abstractmethod
 from pnp_msgs.msg import PNPActionFeedback, PNPResult
+
+try:
+    sys.path.append(os.environ["PNP_HOME"] + '/scripts')
+except:
+    print "Please set PNP_HOME environment variable to PetriNetPlans folder."
+    sys.exit(1)
+
+import pnp_common
+from pnp_common import *
 
 class AbstractAction():
     __metaclass__ = ABCMeta
@@ -37,6 +48,9 @@ class AbstractAction():
 
         self._start_action()
 
+
+        rospy.set_param(get_robot_key(PARAM_PNPACTIONSTATUS) + self.goalhandler.get_goal().name, ACTION_RUNNING)
+
         # rate 0.5hz
         r = rospy.Rate(2)
 
@@ -53,6 +67,8 @@ class AbstractAction():
             r.sleep()
 
         self._stop_action()
+
+        rospy.set_param(get_robot_key(PARAM_PNPACTIONSTATUS) + self.goalhandler.get_goal().name, ACTION_SUCCESS)
 
         # send the result
         result.result = 'OK'

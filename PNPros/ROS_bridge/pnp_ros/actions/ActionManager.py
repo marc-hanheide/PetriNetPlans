@@ -1,10 +1,20 @@
 import os
+import sys
 import rospy
 import inspect
 import fnmatch
 from importlib import import_module
 from AbstractAction import AbstractAction
 from pnp_msgs.msg import PNPResult, PNPGoal
+
+try:
+    sys.path.append(os.environ["PNP_HOME"] + '/scripts')
+except:
+    print "Please set PNP_HOME environment variable to PetriNetPlans folder."
+    sys.exit(1)
+
+import pnp_common
+from pnp_common import *
 
 class ActionManager():
 
@@ -42,7 +52,6 @@ class ActionManager():
 
     def start_action(self, goalhandler):
         goal = goalhandler.get_goal()
-        print "Starting " + goal.name + " " + goal.params
 
         # search for an implementation of the action
         action = None
@@ -70,10 +79,15 @@ class ActionManager():
                     goal.id : action_instance
                 })
 
+                print "[AM] Starting " + goal.name + " " + goal.params
+                
                 # start the action
                 self._action_instances[goal.id].start_action()
             else:
+                print "[AM] Stopping " + goal.name + " " + goal.params
                 # send the result
+                rospy.set_param(get_robot_key(PARAM_PNPACTIONSTATUS) + goalhandler.get_goal().name, ACTION_SUCCESS)
+
                 result = PNPResult()
                 result.result = 'OK'
                 goalhandler.set_succeeded(result, 'OK')

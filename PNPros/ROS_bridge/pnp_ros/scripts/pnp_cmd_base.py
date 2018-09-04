@@ -25,6 +25,10 @@ class PNPCmd_Base(object):
     def __init__(self):
         self.execlevel = 0 # pretty print
 
+        # to store Execution Rules
+        self._action_ers = {}
+
+
     def action_cmd_base(self, action, params, cmd):
         self.printindent()
         if (cmd=='start'):
@@ -78,10 +82,14 @@ class PNPCmd_Base(object):
 
         run = True
 
+        # add the ER
+        if interrupt != '' and recovery != '':
+            self.add_ER(action, interrupt, recovery)
+
         while (run): # interrupt may restart this action
 
             self.action_cmd_base(action, params, 'start')
-            time.sleep(0.1)
+            time.sleep(0.5)
 
             # wait for action to terminate
             r = 'running'
@@ -89,14 +97,8 @@ class PNPCmd_Base(object):
             while (r=='running' and not c):
                 r = self.action_status(action)
                 # check for interrupt condition
-                if (interrupt[0:7].lower()=='timeout'):
-                    now = time.time()
-                    st = self.action_starttime(action)
-                    v = interrupt.split('_')
-                    #print 'timeout %f %f diff: %f > %f' %(now, st, now-st, float(v[1]) )
-                    c = (now - st) > float(v[1])
-                elif len(interrupt) > 0:
-                    c = self.get_condition(interrupt)
+                c, rec = self._check_interrupt_conditions(action)
+
                 time.sleep(0.1)
             print "   -- action status: %s, interrupt condition: %r" %(r,c)
             run = False  # exit
@@ -112,12 +114,39 @@ class PNPCmd_Base(object):
                 while self.action_status(action)=='running':
                     time.sleep(0.1)
                 self.execlevel += 1
-                rec = self.execRecovery(recovery)
+                p_rec = self.execRecovery(rec)
                 self.execlevel -= 1
-                if rec=='restart_action':
+                if p_rec=='restart_action':
                     run = True
         return r
 
+    def _check_interrupt_conditions(self, action):
+        c = False
+        rec = ''
+
+        for interrupt, recovery in self._action_ers.items():
+            if (interrupt[0:7].lower()=='timeout'):
+                now = time.time()
+                st = self.action_starttime(action)
+                v = interrupt.split('_')
+                #print 'timeout %f %f diff: %f > %f' %(now, st, now-st, float(v[1]) )
+                c = (now - st) > float(v[1])
+            else:
+                c = self.get_condition(interrupt)
+
+            # if the condition is true add the recovery to execute
+            if c:
+                rec = recovery
+
+        return c, rec
+
+    def add_ER(self, action, interrupt, recovery):
+        # add the action if not already there
+        if action not in self._action_ers.keys():
+            self._action_ers[action] = {}
+
+        # add the interrupt recovery pair associate with the action
+        self._action_ers[action][interrupt] = recovery
 
     def plan_gen(self, planname):
         oscmd = 'cd %s; ./genplan.sh %s.plan %s.er' % (self.plan_folder, planname, planname)

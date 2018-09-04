@@ -54,14 +54,14 @@ void spinThread()
 
 void action_transition_callback(const actionlib::ActionClient<pnp_msgs::PNPAction>::GoalHandle& handle)
 {
-	ROS_INFO("Transition action in state [%s]", handle.getCommState().toString().c_str());
+	ROS_INFO_STREAM("Transition action in state " << handle.getCommState().toString().c_str());
 	std::cerr<< "Transition action in state" + std::string(handle.getCommState().toString().c_str()) << std::endl;
 }
 
 void action_feedback_callback(const actionlib::ActionClient<pnp_msgs::PNPAction>::GoalHandle& handle,
 															const pnp_msgs::PNPFeedbackConstPtr& feedback)
 {
-	ROS_INFO("Got Feedback %s", feedback->feedback.c_str());
+	ROS_INFO_STREAM("Got Feedback " << feedback->feedback.c_str());
 	std::cerr<< "Got Feedback" + std::string(feedback->feedback.c_str()) << std::endl;
 }
 

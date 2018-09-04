@@ -10,9 +10,15 @@ class AbstractTopicCondition(AbstractCondition):
         # subscribe to the topic with a callback
         rospy.Subscriber(self._topic_name, self._topic_type, self._callback)
 
-        # last_data will be None until the subscribed topic will return some data
-        self.last_value = None
-        self.last_data = None
+        # check if it is a latch message, hence we could already have some message
+        try:
+            msg = rospy.wait_for_message(self._topic_name, self._topic_type, timeout=0.5)
+            self.last_data = msg
+            self.last_value = self._get_value_from_data(msg)
+        except rospy.ROSException: # timeout exceeded (no message waiting)
+            # last_data will be None until the subscribed topic will return some data
+            self.last_value = None
+            self.last_data = None
 
     def _callback(self, data):
         self.last_data = data

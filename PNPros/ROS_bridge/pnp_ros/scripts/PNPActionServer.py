@@ -6,8 +6,13 @@ import os
 import roslib
 import rospy
 import actionlib
-sys.path.append(os.path.join(os.path.dirname(__file__), '../actions'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '../conditions'))
+try:
+    sys.path.append(os.environ["PNP_HOME"] + '/scripts')
+    sys.path.append(os.environ["PNP_HOME"] + '/actions')
+    sys.path.append(os.environ["PNP_HOME"] + '/conditions')
+except:
+    print "Please set PNP_HOME environment variable to PetriNetPlans folder."
+    sys.exit(1)
 
 from ActionManager import ActionManager
 from ConditionManager import ConditionManager
@@ -15,6 +20,9 @@ from RecoveryActionServer import RecoveryActionServer
 from StateActionPairGenerator import StateActionPairGenerator
 from pnp_msgs.msg import PNPActionFeedback, PNPResult, PNPAction
 from pnp_msgs.srv import PNPCondition, PNPConditionResponse, PNPConditionValue, PNPConditionValueResponse
+
+import pnp_common
+from pnp_common import *
 
 roslib.load_manifest('pnp_ros')
 PKG = 'pnp_ros'
@@ -88,12 +96,12 @@ if __name__ == '__main__':
     actionManager = ActionManager()
 
     # Service which returns truth value of condition
-    rospy.Service('PNPConditionEval',
+    rospy.Service(SRV_PNPCONDITIONEVAL,
                   PNPCondition,
                   handle_PNPConditionEval)
 
     # Service which returns value of condition
-    rospy.Service('PNPConditionValue',
+    rospy.Service(SRV_PNPCONDITIONVALUE,
                   PNPConditionValue,
                   handle_PNPConditionValue)
 

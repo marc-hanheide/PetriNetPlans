@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # ROS action_cmd
-
+import sys
 import threading,os
 import roslib, rospy
 
@@ -11,30 +11,23 @@ import pnp_msgs.msg, pnp_msgs.srv
 import std_msgs.msg
 
 # from PetriNetPlans/pyPNP
+try:
+    sys.path.insert(0, os.environ["PNP_HOME"] + '/scripts')
+except:
+    print "Please set PNP_HOME environment variable to PetriNetPlans folder."
+    sys.exit(1)
+
 import pnp_cmd_base
 from pnp_cmd_base import *
 
+import pnp_common
+from pnp_common import *
 
 roslib.load_manifest('pnp_ros')
 PKG = 'pnp_ros'
 NODE = 'pnp_cmd'
 
 # ROS names (see pnp_ros/include/pnp_ros/names.h)
-
-TOPIC_PLANTOEXEC = "planToExec"
-TOPIC_PNPACTIONCMD = "PNPActionCmd"
-SRV_PNPCONDITIONEVAL = "PNPConditionEval"
-PARAM_PNPACTIONSTATUS = "PNPActionStatus/"
-PARAM_PNPCONDITIONBUFFER = "PNPconditionsBuffer/"
-
-# PNPPLANFOLDER = "pnp_ros/plan_folder"
-
-
-def get_robot_key(name):
-    key = name
-    if rospy.has_param('robotname'):
-        key = "/"+rospy.get_param('robotname')+"/"+key
-    return key
 
 
 class PNPCmd(PNPCmd_Base):
@@ -97,6 +90,11 @@ class PNPCmd(PNPCmd_Base):
     def action_cmd(self,action,params,cmd):
         if (cmd=='stop'):
             cmd = 'interrupt'
+        elif (cmd=='start'):
+            # remove parameter associated with the action before strting it
+            key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
+            rospy.delete_param(key)
+        print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
         self.rate.sleep()
