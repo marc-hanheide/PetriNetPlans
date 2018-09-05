@@ -93,7 +93,10 @@ class PNPCmd(PNPCmd_Base):
         elif (cmd=='start'):
             # remove parameter associated with the action before strting it
             key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
-            rospy.delete_param(key)
+            try:
+                rospy.delete_param(key)
+            except KeyError:
+                pass
         print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
