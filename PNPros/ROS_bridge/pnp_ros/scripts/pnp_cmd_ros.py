@@ -3,7 +3,7 @@
 
 # ROS action_cmd
 import sys
-import threading,os
+import os
 import roslib, rospy
 
 import pnp_msgs.msg, pnp_msgs.srv
@@ -134,6 +134,7 @@ class PNPCmd(PNPCmd_Base):
         else:
             print("ERROR: plan cmd %s %s undefined!" %(planname,cmd))
         self.rate.sleep()
+
 
 
 def main():

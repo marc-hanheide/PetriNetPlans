@@ -7,7 +7,6 @@ import argparse
 import sys
 import os
 import time
-import threading
 
 class tcol:
     HEADER = '\033[95m'
