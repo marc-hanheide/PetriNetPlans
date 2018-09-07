@@ -97,7 +97,7 @@ class PNPCmd(PNPCmd_Base):
                 rospy.delete_param(key)
             except KeyError:
                 pass
-        print "ACTIONCMD", action+"_"+params+" "+cmd
+        # print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
         self.rate.sleep()
@@ -106,6 +106,7 @@ class PNPCmd(PNPCmd_Base):
         key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
         try:
             r = rospy.get_param(key)
+            # print "KEY: ", key
             #print('Action %s status %s' %(action,r))
         except KeyError as e:
             print "action %s status error: %s" %(action,e)

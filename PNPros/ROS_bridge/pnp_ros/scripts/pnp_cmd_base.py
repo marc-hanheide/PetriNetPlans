@@ -88,7 +88,7 @@ class PNPCmd_Base(object):
         while (run): # interrupt may restart this action
 
             self.action_cmd_base(action, params, 'start')
-            time.sleep(0.5)
+            time.sleep(1)
 
             # wait for action to terminate
             r = 'running'
