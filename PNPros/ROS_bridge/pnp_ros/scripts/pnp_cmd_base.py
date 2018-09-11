@@ -88,7 +88,11 @@ class PNPCmd_Base(object):
         while (run): # interrupt may restart this action
 
             self.action_cmd_base(action, params, 'start')
-            time.sleep(1)
+
+            # the PNP action server will change the status to running after it stated
+            # the action. Therefore we wait here for that to happen.
+            while (self.action_status(action) == "started"):
+                time.sleep(0.1)
 
             # wait for action to terminate
             r = 'running'
@@ -117,25 +121,31 @@ class PNPCmd_Base(object):
                 self.execlevel -= 1
                 if p_rec=='restart_action':
                     run = True
+                else:
+                    rospy.logwarn("the recovery procedure "+ p_rec + "may not be implemented.")
         return r
 
     def _check_interrupt_conditions(self, action):
         c = False
         rec = ''
 
-        for interrupt, recovery in self._action_ers.items():
-            if (interrupt[0:7].lower()=='timeout'):
-                now = time.time()
-                st = self.action_starttime(action)
-                v = interrupt.split('_')
-                #print 'timeout %f %f diff: %f > %f' %(now, st, now-st, float(v[1]) )
-                c = (now - st) > float(v[1])
-            else:
-                c = self.get_condition(interrupt)
+        if action in self._action_ers.keys():
+            print self._action_ers[action].items()
+            for interrupt, recovery in self._action_ers[action].items():
+                if (interrupt[0:7].lower()=='timeout'):
+                    now = time.time()
+                    st = self.action_starttime(action)
+                    v = interrupt.split('_')
+                    #print 'timeout %f %f diff: %f > %f' %(now, st, now-st, float(v[1]) )
+                    c = (now - st) > float(v[1])
+                else:
+                    c = self.get_condition(interrupt)
 
-            # if the condition is true add the recovery to execute
-            if c:
-                rec = recovery
+                # if the condition is true add the recovery to execute
+                if c:
+                    rec = recovery
+        else:
+            print "No ers for action ", action
 
         return c, rec
 
@@ -162,6 +172,9 @@ class PNPCmd_Base(object):
 
     def action_cmd(self,action,params,cmd): # non-blocking
         pass
+
+    def set_action_status(self, action, status):
+        return ''
 
     def action_status(self, action):
         return ''

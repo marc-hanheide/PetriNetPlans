@@ -7,9 +7,11 @@ SRV_PNPCONDITIONVALUE = "PNPConditionValue"
 PARAM_PNPACTIONSTATUS = "/PNPActionStatus/"
 PARAM_PNPCONDITIONBUFFER = "PNPconditionsBuffer/"
 
+ACTION_STARTED = "started"
 ACTION_RUNNING = "running"
 ACTION_INTERRUPT = "interrupt"
 ACTION_SUCCESS = "success"
+ACTION_NOT_IMPLEMENTED = "not_implemented"
 
 # PNPPLANFOLDER = "pnp_ros/plan_folder"
 

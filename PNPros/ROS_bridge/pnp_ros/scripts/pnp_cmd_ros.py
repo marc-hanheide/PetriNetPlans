@@ -5,6 +5,7 @@
 import sys
 import os
 import roslib, rospy
+import time
 
 import pnp_msgs.msg, pnp_msgs.srv
 
@@ -36,6 +37,7 @@ class PNPCmd(PNPCmd_Base):
         PNPCmd_Base.__init__(self)
         self.pub_actioncmd = None
         self.pub_plantoexec = None
+        self._current_action_starttime = None
 
     def init(self):
         parser = argparse.ArgumentParser()
@@ -90,17 +92,34 @@ class PNPCmd(PNPCmd_Base):
     def action_cmd(self,action,params,cmd):
         if (cmd=='stop'):
             cmd = 'interrupt'
+            self._current_action_starttime = None
         elif (cmd=='start'):
+            self._current_action_starttime = time.time()
             # remove parameter associated with the action before strting it
-            key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
-            try:
-                rospy.delete_param(key)
-            except KeyError:
-                pass
+            # key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
+            # try:
+            #     rospy.delete_param(key)
+            # except KeyError:
+            #     pass
+            # the PNP action server will change the status to running after it stated
+            # the action. Therefore we wait here for that to happen.
+            self.set_action_status(action, ACTION_STARTED)
+            
         # print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
         self.rate.sleep()
+
+    def set_action_status(self, action, status):
+        key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
+        try:
+            r = rospy.set_param(key, status)
+            # print "KEY: ", key
+            #print('Action %s status %s' %(action,r))
+        except Exception as e:
+            print "action %s status Exception for parameter: %s" %(action,e)
+            r = ''
+        return r
 
     def action_status(self, action):
         key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
@@ -109,13 +128,14 @@ class PNPCmd(PNPCmd_Base):
             # print "KEY: ", key
             #print('Action %s status %s' %(action,r))
         except KeyError as e:
-            print "action %s status error: %s" %(action,e)
+            print "action %s status KeyError for parameter: %s" %(action,e)
             r = ''
         return r
 
     def action_starttime(self, action):
-        # TODO
-        return 0
+        if self._current_action_starttime is None:
+            rospy.logwarn("Current action starttime not set.")
+        return self._current_action_starttime
 
     def get_condition(self, cond):
         try:

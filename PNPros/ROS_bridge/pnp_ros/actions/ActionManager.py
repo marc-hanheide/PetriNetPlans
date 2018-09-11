@@ -80,7 +80,7 @@ class ActionManager():
                 })
 
                 print "[AM] Starting " + goal.name + " " + goal.params
-                
+
                 # start the action
                 self._action_instances[goal.id].start_action()
             else:
@@ -92,6 +92,7 @@ class ActionManager():
                 result.result = 'OK'
                 goalhandler.set_succeeded(result, 'OK')
         else:
+            rospy.set_param(get_robot_key(PARAM_PNPACTIONSTATUS) + goalhandler.get_goal().name, ACTION_NOT_IMPLEMENTED)
             rospy.logwarn("action " + goal.name + " not implemented")
 
     def interrupt_action(self, goalhandler):
