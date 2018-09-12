@@ -130,7 +130,7 @@ class PNPCmd_Base(object):
         rec = ''
 
         if action in self._action_ers.keys():
-            print self._action_ers[action].items()
+            # print self._action_ers[action].items()
             for interrupt, recovery in self._action_ers[action].items():
                 if (interrupt[0:7].lower()=='timeout'):
                     now = time.time()
@@ -144,8 +144,8 @@ class PNPCmd_Base(object):
                 # if the condition is true add the recovery to execute
                 if c:
                     rec = recovery
-        else:
-            print "No ers for action ", action
+        # else:
+            # print "No ers for action ", action
 
         return c, rec
 
