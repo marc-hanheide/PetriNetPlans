@@ -125,6 +125,7 @@ class PNPCmd(PNPCmd_Base):
         # print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
+        rospy.Rate(0.5).sleep()
 
     def set_action_status(self, action, status):
         key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
