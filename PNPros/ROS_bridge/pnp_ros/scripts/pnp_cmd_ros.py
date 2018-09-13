@@ -11,6 +11,7 @@ import pnp_msgs.msg, pnp_msgs.srv
 
 import std_msgs.msg
 
+
 # from PetriNetPlans/pyPNP
 try:
     sys.path.insert(0, os.environ["PNP_HOME"] + '/scripts')
@@ -39,6 +40,7 @@ class PNPCmd(PNPCmd_Base):
         self.pub_plantoexec = None
         self._current_action_starttime = None
 
+
     def init(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("-a", type=str, default="",
@@ -56,6 +58,10 @@ class PNPCmd(PNPCmd_Base):
 
     def begin(self):
         rospy.init_node(NODE)
+
+        rospy.on_shutdown(self.terminate)
+
+        self._current_action = None
 
         self.rate = rospy.Rate(2) # hz
         self.rate.sleep()
@@ -89,12 +95,23 @@ class PNPCmd(PNPCmd_Base):
     def end(self):
         pass
 
+    def terminate(self):
+        if self._current_action is not None:
+            rospy.logwarn("Terminating action " + str(self._current_action[0]))
+            self.action_cmd(self._current_action[0], self._current_action[1], "stop")
+        else:
+            rospy.logwarn("No action is currently running to be terminated")
+        os._exit(1)
+
+
     def action_cmd(self,action,params,cmd):
         if (cmd=='stop'):
             cmd = 'interrupt'
             self._current_action_starttime = None
+            self._current_action = None
         elif (cmd=='start'):
             self._current_action_starttime = time.time()
+            self._current_action = [action, params]
             # remove parameter associated with the action before strting it
             # key = get_robot_key(PARAM_PNPACTIONSTATUS)+action
             # try:
@@ -104,11 +121,10 @@ class PNPCmd(PNPCmd_Base):
             # the PNP action server will change the status to running after it stated
             # the action. Therefore we wait here for that to happen.
             self.set_action_status(action, ACTION_STARTED)
-            
+
         # print "ACTIONCMD", action+"_"+params+" "+cmd
         data = action+"_"+params+" "+cmd
         self.pub_actioncmd.publish(data)
-        self.rate.sleep()
 
     def set_action_status(self, action, status):
         key = get_robot_key(PARAM_PNPACTIONSTATUS)+action

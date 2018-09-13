@@ -98,7 +98,7 @@ class ActionManager():
     def interrupt_action(self, goalhandler):
         ''' Action interrupted before it finished the execution '''
         goal = goalhandler.get_goal()
-        print "Interrupting " + goal.name + " " + goal.params
+        print "[AM] Interrupting " + goal.name + " " + goal.params
 
         # accept the goal
         goalhandler.set_accepted()
@@ -116,7 +116,7 @@ class ActionManager():
     def end_action(self, goalhandler):
         ''' Action ended its execution (this is called after the action is already finished, why?)'''
         goal = goalhandler.get_goal()
-        print "Ending " + goal.name + " " + goal.params
+        print "[AM] Ending " + goal.name + " " + goal.params
 
         # accept the goal
         goalhandler.set_accepted()
