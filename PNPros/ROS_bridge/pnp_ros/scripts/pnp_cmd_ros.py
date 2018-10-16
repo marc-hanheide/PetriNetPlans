@@ -99,6 +99,7 @@ class PNPCmd(PNPCmd_Base):
         if self._current_action is not None:
             rospy.logwarn("Terminating action " + str(self._current_action[0]))
             self.action_cmd(self._current_action[0], self._current_action[1], "stop")
+            time.sleep(1)
         else:
             rospy.logwarn("No action is currently running to be terminated")
         os._exit(1)

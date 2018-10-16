@@ -91,6 +91,7 @@ class PNPCmd_Base(object):
 
             # the PNP action server will change the status to running after it stated
             # the action. Therefore we wait here for that to happen.
+
             while (self.action_status(action) == "started"):
                 time.sleep(0.1)
 
