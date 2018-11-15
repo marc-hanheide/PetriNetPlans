@@ -8,6 +8,8 @@ class AbstractServiceCondition(AbstractCondition):
     def __init__(self):
         super(AbstractServiceCondition, self).__init__()
         # create service proxy
+        rospy.wait_for_service(self._service_name)
+        
         self.service_proxy = rospy.ServiceProxy(self._service_name, self._service_type)
 
     # TODO: is this useful for service conditions?

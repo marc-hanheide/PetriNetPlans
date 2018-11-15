@@ -48,7 +48,6 @@ class AbstractAction():
 
         self._start_action()
 
-
         rospy.set_param(get_robot_key(PARAM_PNPACTIONSTATUS) + self.goalhandler.get_goal().name, ACTION_RUNNING)
 
         # rate 0.5hz

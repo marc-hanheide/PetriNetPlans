@@ -24,7 +24,7 @@ from pnp_common import *
 
 roslib.load_manifest('pnp_ros')
 PKG = 'pnp_ros'
-NODE = 'pnpactionserver'
+NODE = 'PNPActionServer'
 conditionManager = None
 actionManager = None
 

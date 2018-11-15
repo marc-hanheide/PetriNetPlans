@@ -123,7 +123,7 @@ class PNPCmd_Base(object):
                 if p_rec=='restart_action':
                     run = True
                 else:
-                    rospy.logwarn("the recovery procedure "+ p_rec + "may not be implemented.")
+                    print "[ERROR] The recovery procedure "+ p_rec + " may not be implemented. I am just stopping the current action and continuing with the plan."
         return r
 
     def _check_interrupt_conditions(self, action):
