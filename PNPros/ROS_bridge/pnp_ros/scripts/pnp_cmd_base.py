@@ -122,6 +122,8 @@ class PNPCmd_Base(object):
                 self.execlevel -= 1
                 if p_rec=='restart_action':
                     run = True
+                elif p_rec=='fail_plan':
+                    self.end()
                 else:
                     print "[ERROR] The recovery procedure "+ p_rec + " may not be implemented. I am just stopping the current action and continuing with the plan."
         return r
