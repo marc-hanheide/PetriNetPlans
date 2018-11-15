@@ -143,13 +143,13 @@ class PNPCmd_Base(object):
                     c = (now - st) > float(v[1])
                 else:
                     c = self.get_condition(interrupt)
-
                 # if the condition is true add the recovery to execute
                 if c:
                     rec = recovery
+                    return c, rec
+
         # else:
             # print "No ers for action ", action
-
         return c, rec
 
     def add_ER(self, action, interrupt, recovery):
